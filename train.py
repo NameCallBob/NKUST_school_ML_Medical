@@ -25,7 +25,10 @@ from matplotlib import rc
 rc('font', family='Heiti TC')  # "PingFang TC" 是繁體中文版本
 # rc('font', family='Microsoft JhengHei')
 
-class train:
+class prepare:
+    """
+    挑選特徵及分割訓練和驗證集資料
+    """
 
     def __init__(self):
         # 未經過處理的資料
@@ -140,10 +143,13 @@ class train:
 
         return filtered_features, high_importance_features
 
-    def run_model_predict(self):
+    def run(self):
+        """
+        主執行
+        """
         X_train, X_test, y_train, y_test = self.getTrainingData()
         print(self.feature_importance(X_train,y_train))
 
 
 if __name__ == "__main__":
-    train().run_model_predict()
+    prepare().run_model_predict()

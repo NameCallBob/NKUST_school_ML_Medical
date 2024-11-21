@@ -1,5 +1,6 @@
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+from imblearn.over_sampling import SMOTE
 
 """
 主要資料欄位：
@@ -11,7 +12,9 @@ from sklearn.preprocessing import StandardScaler
 是否有神經病變_確診神經病變
 """
 class trainingData:
-    
+    """
+    導入資料並開始預處理
+    """
     def load_data(self):
         """導入資料"""
 
@@ -29,13 +32,39 @@ class trainingData:
         
         return year1 , year2
     
+    def is_imbalanced(self, data, label_column, threshold=0.2):
+        """
+        檢查資料是否不平衡
+        """
+        class_distribution = data[label_column].value_counts(normalize=True)
+        min_class_proportion = class_distribution.min()
+        return min_class_proportion < threshold
+
     def preprocess(self):
-        """處理缺失值，從中也可以取得沒有經過處理的資料"""
+        """處理缺失值並選擇性地應用 SMOTE"""
         year1, year2 = self.load_data()
 
         # year1與year2皆有缺失值，由於資料非屬於可以填補的性質，將直接刪除整列資料
         year1_clean = year1.dropna()
         year2_clean = year2.dropna()
+
+        # 判斷是否需要平衡 year1
+        if self.is_imbalanced(year1_clean, label_column="確診神經病變_1"):
+            print("Year1 資料不平衡，應用 SMOTE")
+            smote = SMOTE(random_state=42)
+            X_year1 = year1_clean.drop(columns=["確診神經病變_1"])
+            y_year1 = year1_clean["確診神經病變_1"]
+            X_year1_resampled, y_year1_resampled = smote.fit_resample(X_year1, y_year1)
+            year1_clean = pd.concat([X_year1_resampled, y_year1_resampled], axis=1)
+
+        # 判斷是否需要平衡 year2
+        if self.is_imbalanced(year2_clean, label_column="確診神經病變_2"):
+            print("Year2 資料不平衡，應用 SMOTE")
+            smote = SMOTE(random_state=42)
+            X_year2 = year2_clean.drop(columns=["確診神經病變_2"])
+            y_year2 = year2_clean["確診神經病變_2"]
+            X_year2_resampled, y_year2_resampled = smote.fit_resample(X_year2, y_year2)
+            year2_clean = pd.concat([X_year2_resampled, y_year2_resampled], axis=1)
 
         return year1_clean, year2_clean
 
