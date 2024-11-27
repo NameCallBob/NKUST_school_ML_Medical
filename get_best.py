@@ -50,7 +50,7 @@ def hyperparameter_optimization(
     return best_model, best_params
 
 from sklearn.ensemble import RandomForestClassifier
-from train import prepare
+from prepare import prepare
 
 X_train, X_test, y_train, y_test = prepare().getTrainingData()
 # RF

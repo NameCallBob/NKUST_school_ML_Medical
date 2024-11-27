@@ -89,46 +89,75 @@ class Complex_model:
 
 
 if __name__ == "__main__":
-    from train import prepare ; from evaluate_model import  evaluate
-    X_train, X_test, y_train, y_test = prepare().getTrainingData()
+    from prepare import prepare
+    from evaluate import Evaluate
+    import pandas as pd
+    import numpy as np
 
-    # 初始化 Models 類別
-    model_handler = Complex_model()
+    for i in range(1,3):
+        # 準備數據
+        X_train, X_test, y_train, y_test = prepare().getTrainingData(year=i)
 
-    # 用來存放各模型的評估結果
-    results = {}
-
-    # 卷積神經網路 (假設數據需要 reshape)
-    if len(X_train.shape) == 2:  # CNN 需要多維輸入
-        num_classes = len(np.unique(y_train))
-        if not isinstance(X_train, np.ndarray):
-            X_train = X_train.to_numpy()
-            X_test = X_test.to_numpy()
-            X_train_cnn = X_train.reshape(X_train.shape[0], X_train.shape[1], 1, 1)  # 調整為 (樣本數, 特徵數, 高度, 寬度)
-        num_classes = len(np.unique(y_train))
-        # 調整數據形狀以符合 CNN 要求
-        X_train_cnn = X_train.reshape(X_train.shape[0], X_train.shape[1], 1, 1)
-        X_test_cnn = X_test.reshape(X_test.shape[0], X_test.shape[1], 1, 1)
-
-        # 將標籤轉換為 one-hot 編碼
-        y_train_categorical = to_categorical(y_train, num_classes=num_classes)
-        y_test_categorical = to_categorical(y_test, num_classes=num_classes)
+        # 初始化 Models 類別
+        model_handler = Complex_model()
         
-        print("訓練 CNN 模型...")
-        X_train_cnn = X_train.reshape(X_train.shape[0], X_train.shape[1], 1, 1)  # 調整為 (樣本數, 特徵數, 高度, 寬度)
-        input_shape = (X_train_cnn.shape[1], X_train_cnn.shape[2], X_train_cnn.shape[3])        
-        num_classes = len(np.unique(y_train))
-        model_handler.train_cnn(X_train_cnn, y_train, input_shape, num_classes)
-        results["CNN"] = evaluate.model("CNN",model_handler.models.get("CNN"),X_test_cnn, y_test)
+        # 確保 X_train 和 X_test 是 Numpy 陣列
+        if isinstance(X_train, pd.DataFrame):
+            X_train = X_train.values
+        if isinstance(X_test, pd.DataFrame):
+            X_test = X_test.values
 
-    # 輸出結果
-    print("\n模型評估結果：")
-    for model_name, metrics in results.items():
-        print(f"\n{model_name} 模型的評估結果:")
-        for metric, value in metrics.items():
-            if metric == "Confusion Matrix":
-                print(f"{metric}:\n{value}")
-            elif value is None:
-                print(f"{metric}: 無法計算")
-            else:
-                print(f"{metric}: {value:.4f}")
+        # 用來存放各模型的評估結果
+        results = {}
+
+        # CNN 模型訓練與評估
+        try:
+            print("開始訓練 CNN 模型...")
+
+            # 判斷數據形狀
+            if len(X_train.shape) == 2:  # 一維特徵數據需要 reshape
+                feature_size = X_train.shape[1]
+                height = int(np.sqrt(feature_size))  # 嘗試將特徵數轉換為矩陣形式
+                width = feature_size // height
+                X_train = X_train.reshape(-1, height, width, 1)  # (樣本數, 高度, 寬度, 通道數)
+                X_test = X_test.reshape(-1, height, width, 1)
+            elif len(X_train.shape) == 3:  # 如果已有 (樣本數, 高度, 寬度)
+                X_train = np.expand_dims(X_train, axis=-1)  # 添加通道維度
+                X_test = np.expand_dims(X_test, axis=-1)
+
+            # 確定輸入形狀
+            input_shape = X_train.shape[1:]  # (高度, 寬度, 通道)
+            num_classes = len(np.unique(y_train))
+
+            # 訓練 CNN
+            model_handler.train_cnn(X_train, y_train, input_shape, num_classes)
+
+            # 評估 CNN 模型
+            results["CNN"] = Evaluate.model(
+                "CNN", model_handler.models.get("CNN"), X_test, y_test,i
+            )
+            print("CNN 模型訓練完成並評估成功！")
+        except Exception as e:
+            print(f"CNN 模型訓練或評估時出現錯誤：{e}")
+
+        # 結果輸出
+        print("\n模型評估結果：")
+        for model_name, metrics in results.items():
+            print(f"\n{model_name} 模型的評估結果:")
+            for metric, value in metrics.items():
+                if metric == "Confusion Matrix":
+                    print(f"{metric}:\n{value}")
+                elif value is None:
+                    print(f"{metric}: 無法計算")
+                else:
+                    print(f"{metric}: {value:.4f}")
+
+        # 將結果轉為 DataFrame 並保存到 Excel
+        output_file = f"./result/cnn_model_evaluation_{i}.xlsx"
+        data = {
+            metric: {model_name: metrics.get(metric, "無法計算") for model_name, metrics in results.items()}
+            for metric in ["Accuracy", "Precision", "Recall", "F1 Score", "AUC"]
+        }
+        df = pd.DataFrame(data).T
+        df.to_excel(output_file)
+        print(f"所有模型的評估結果已保存至 {output_file}")
