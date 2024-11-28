@@ -34,7 +34,7 @@ class trainingData:
         year2_tor = data[year2_tor_combined]
         year2_ele = data[year2_ele_combined]
         
-        return year1_tor, year1_ele, year2_tor, year2_ele
+        return {'year1_tor':year1_tor, 'year1_ele':year1_ele, 'year2_tor':year2_tor, 'year2_ele':year2_ele}
     
     def is_imbalanced(self, data, label_column, threshold=0.2):
         """
@@ -46,7 +46,11 @@ class trainingData:
 
     def preprocess(self):
         """處理缺失值並選擇性地應用 SMOTE"""
-        year1_tor, year1_ele, year2_tor, year2_ele = self.load_data()
+        data_dict = self.load_data()
+        year1_tor = data_dict['year1_tor']
+        year1_ele = data_dict['year1_ele']
+        year2_tor = data_dict['year2_tor']
+        year2_ele = data_dict['year2_ele']
 
         # year1與year2皆有缺失值，由於資料非屬於可以填補的性質，將直接刪除整列資料
         year1_tor_clean = year1_tor.dropna()
@@ -212,5 +216,6 @@ class trainingData:
         return year1 , year2
     
 if __name__ == "__main__":
+    # d = trainingData().standardize()
     d = trainingData().standardize()
     print(d)
