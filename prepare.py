@@ -50,7 +50,8 @@ class prepare:
                         year=1,
                         data_type="ele",  # 資料類型：'ele' 或 'tor'
                         test_size=0.2,
-                        random_state=42):
+                        random_state=42,
+                        common_features=None,):
         """
         取得訓練資料
 
@@ -59,22 +60,32 @@ class prepare:
         @params random_state 隨機種子
         @params year 有關資料集的年編號
         @params data_type: 選擇 'ele' 或 'tor' 資料
+        @params common_features: 交集的特徵列表
         return X_train, X_test, y_train, y_test
         """
 
         
         # 選擇資料集
         data = self.standard_data if standard else self.origin_data
-
+        print(f'data:{data}')
         key = f'year{year}_{data_type}'
-        
+
         if key not in data:
             raise ValueError(f"資料集中沒有鍵 {key}，請確認年份和資料類型參數是否正確！")
 
         selected_data = data[key]
 
-        if use_all_feature:
-                features = selected_data.drop(columns=[f"確診神經病變_{year}"])
+        # 動態決定 '_1' 或 '_2' 的後綴
+        def add_suffix_based_on_year(features, year):
+            suffix = f"_{year}"  # 如果 year == 1，則加上 '_1'；如果是 year == 2，則加上 '_2'
+            return [f"{feature}{suffix}" for feature in features]
+        
+        if common_features:     # 假設有加入交集特徵，就取得交集特徵的欄位
+            common_features_with_suffix = add_suffix_based_on_year(common_features, year)
+            features = selected_data[common_features_with_suffix]
+
+        elif use_all_feature:
+            features = selected_data.drop(columns=[f"確診神經病變_{year}"])
         else:
             features_selected = ['SNAP_Sur_L_1', 'SNCV_Sur_L_1', 'SNAP_Sur_R_1', 'SLO_Sur_L_1', 'SNCV_Sur_R_1', 'MNCV_Tib_L_1', 'MNCV_Per_L_1']
             features = selected_data[features_selected]
@@ -119,7 +130,7 @@ class prepare:
         plt.title(f"所有特徵的重要性 ，第{year}年 {type}")
         plt.gca().invert_yaxis()  # 翻轉 Y 軸
         plt.tight_layout()  # 自動調整以避免文字重疊
-        plt.show()
+        # plt.show()
 
         # 2. 輸出前 15 個重要特徵的圖表
         top_15_features = importance_df.head(15)
@@ -130,7 +141,7 @@ class prepare:
         plt.title(f"前 15 個特徵的重要性，第{year}年 {type}" )
         plt.gca().invert_yaxis()  # 翻轉 Y 軸
         plt.tight_layout()
-        plt.show()
+        # plt.show()
 
         # 3. 篩選出高於 4% 的特徵（調整閾值以適應數據）
         threshold = 0.04
@@ -145,7 +156,7 @@ class prepare:
             plt.title(f"特徵重要性 ≥ {threshold * 100}% ，第{year}年 {type}" )
             plt.gca().invert_yaxis()  # 翻轉 Y 軸
             plt.tight_layout()
-            plt.show()
+            # plt.show()
 
             # 返回高於 4% 的特徵名稱列表
             high_importance_features = filtered_features["特徵名稱"].tolist()
@@ -190,6 +201,21 @@ class prepare:
         print("共同的 ele 特徵：", ele_common)
         print("共同的 tor 特徵：", tor_common)
 
+        # 將交集特徵傳遞給 getTrainingData 方法
+        for year in [1, 2]:
+            for data_type in ["ele", "tor"]:
+                print(f"處理第 {year} 年的 {data_type} 資料，使用交集特徵")
+                if data_type == "ele":
+                    common_features = list(ele_common)
+                else:
+                    common_features = list(tor_common)
+
+                X_train, X_test, y_train, y_test = self.getTrainingData(
+                    year=year,
+                    data_type=data_type,
+                    common_features=common_features  # 傳遞交集特徵
+                )
+
 if __name__ == "__main__":
-    data= prepare().getTrainingData()
+    data= prepare().run()
     print(data)
