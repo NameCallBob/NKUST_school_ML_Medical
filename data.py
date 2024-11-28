@@ -23,14 +23,18 @@ class trainingData:
         
         # 使用正確的方式合併列表
         # NOTE:feature[3]單純是字串，有關於最後要預測的結果
-        year1_features_combined = year1_feature[0] + year1_feature[1] + [year1_feature[2]]
-        year2_features_combined = year2_feature[0] + year2_feature[1] + [year2_feature[2]]
+        year1_tor_combined = year1_feature[0] + [year1_feature[2]]
+        year1_ele_combined = year1_feature[1] + [year1_feature[2]]
+        year2_tor_combined = year2_feature[0] + [year2_feature[2]]
+        year2_ele_combined = year2_feature[1] + [year2_feature[2]]
 
         data = pd.read_excel(file_path)
-        year1 = data[year1_features_combined]
-        year2 = data[year2_features_combined]
+        year1_tor = data[year1_tor_combined]
+        year1_ele = data[year1_ele_combined]
+        year2_tor = data[year2_tor_combined]
+        year2_ele = data[year2_ele_combined]
         
-        return year1 , year2
+        return year1_tor, year1_ele, year2_tor, year2_ele
     
     def is_imbalanced(self, data, label_column, threshold=0.2):
         """
@@ -42,63 +46,100 @@ class trainingData:
 
     def preprocess(self):
         """處理缺失值並選擇性地應用 SMOTE"""
-        year1, year2 = self.load_data()
+        year1_tor, year1_ele, year2_tor, year2_ele = self.load_data()
 
         # year1與year2皆有缺失值，由於資料非屬於可以填補的性質，將直接刪除整列資料
-        year1_clean = year1.dropna()
-        year2_clean = year2.dropna()
+        year1_tor_clean = year1_tor.dropna()
+        year1_ele_clean = year1_ele.dropna()
+        year2_tor_clean = year2_tor.dropna()
+        year2_ele_clean = year2_ele.dropna()
 
         # 判斷是否需要平衡 year1
-        if self.is_imbalanced(year1_clean, label_column="確診神經病變_1"):
+        if self.is_imbalanced(year1_tor_clean, label_column="確診神經病變_1"):
             print("Year1 資料不平衡，應用 SMOTE")
             smote = SMOTE(random_state=42)
-            X_year1 = year1_clean.drop(columns=["確診神經病變_1"])
-            y_year1 = year1_clean["確診神經病變_1"]
-            X_year1_resampled, y_year1_resampled = smote.fit_resample(X_year1, y_year1)
-            year1_clean = pd.concat([X_year1_resampled, y_year1_resampled], axis=1)
+            X_year1_tor = year1_tor_clean.drop(columns=["確診神經病變_1"])
+            y_year1_tor = year1_tor_clean["確診神經病變_1"]
+            X_year1_tor_resampled, y_year1_tor_resampled = smote.fit_resample(X_year1_tor, y_year1_tor)
+            year1_tor_clean = pd.concat([X_year1_tor_resampled, y_year1_tor_resampled], axis=1)
+
+        if self.is_imbalanced(year1_ele_clean, label_column="確診神經病變_1"):
+            print("Year1 資料不平衡，應用 SMOTE")
+            smote = SMOTE(random_state=42)
+            X_year1_ele = year1_ele_clean.drop(columns=["確診神經病變_1"])
+            y_year1_ele = year1_ele_clean["確診神經病變_1"]
+            X_year1_ele_resampled, y_year1_ele_resampled = smote.fit_resample(X_year1_ele, y_year1_ele)
+            year1_ele_clean = pd.concat([X_year1_ele_resampled, y_year1_ele_resampled], axis=1)
 
         # 判斷是否需要平衡 year2
-        if self.is_imbalanced(year2_clean, label_column="確診神經病變_2"):
+        if self.is_imbalanced(year2_tor_clean, label_column="確診神經病變_2"):
             print("Year2 資料不平衡，應用 SMOTE")
             smote = SMOTE(random_state=42)
-            X_year2 = year2_clean.drop(columns=["確診神經病變_2"])
-            y_year2 = year2_clean["確診神經病變_2"]
-            X_year2_resampled, y_year2_resampled = smote.fit_resample(X_year2, y_year2)
-            year2_clean = pd.concat([X_year2_resampled, y_year2_resampled], axis=1)
+            X_year2_tor = year2_tor_clean.drop(columns=["確診神經病變_2"])
+            y_year2_tor = year2_tor_clean["確診神經病變_2"]
+            X_year2_tor_resampled, y_year2_tor_resampled = smote.fit_resample(X_year2_tor, y_year2_tor)
+            year2_tor_clean = pd.concat([X_year2_tor_resampled, y_year2_tor_resampled], axis=1)
+        
+        if self.is_imbalanced(year2_ele_clean, label_column="確診神經病變_2"):
+            print("Year2 資料不平衡，應用 SMOTE")
+            smote = SMOTE(random_state=42)
+            X_year2_ele = year2_ele_clean.drop(columns=["確診神經病變_2"])
+            y_year2_ele = year2_ele_clean["確診神經病變_2"]
+            X_year2_ele_resampled, y_year2_ele_resampled = smote.fit_resample(X_year2_ele, y_year2_ele)
+            year2_ele_clean = pd.concat([X_year2_ele_resampled, y_year2_ele_resampled], axis=1)
 
-        return year1_clean, year2_clean
+        return year1_tor_clean, year1_ele_clean, year2_tor_clean, year2_ele_clean
 
     def standardize(self):
         """標準化資料（跳過特定欄位）"""
-        year1_clean, year2_clean = self.preprocess()
+        year1_tor_clean, year1_ele_clean, year2_tor_clean, year2_ele_clean = self.preprocess()
 
         # 不需要標準化的欄位
         skip_columns = ["確診神經病變_1", "確診神經病變_2"]
 
         # 初始化結果 DataFrame
-        year1_standardized = pd.DataFrame()
-        year2_standardized = pd.DataFrame()
+        year1_tor_standardized = pd.DataFrame()
+        year1_ele_standardized = pd.DataFrame()
+        year2_tor_standardized = pd.DataFrame()
+        year2_ele_standardized = pd.DataFrame()
 
         # Year1 的標準化處理
         scaler = StandardScaler()
-        for col in year1_clean.columns:
+        for col in year1_tor_clean.columns:
             if col in skip_columns:
                 # 不進行標準化的欄位直接保留
-                year1_standardized[col] = year1_clean[col]
+                year1_tor_standardized[col] = year1_tor_clean[col]
             else:
                 # 標準化處理
-                year1_standardized[col] = scaler.fit_transform(year1_clean[[col]]).flatten()
+                year1_tor_standardized[col] = scaler.fit_transform(year1_tor_clean[[col]]).flatten()
+        
+        for col in year1_ele_clean.columns:
+            if col in skip_columns:
+                # 不進行標準化的欄位直接保留
+                year1_ele_standardized[col] = year1_ele_clean[col]
+            else:
+                # 標準化處理
+                year1_ele_standardized[col] = scaler.fit_transform(year1_ele_clean[[col]]).flatten()
+
 
         # Year2 的標準化處理
-        for col in year2_clean.columns:
+        for col in year2_tor_clean.columns:
             if col in skip_columns:
                 # 不進行標準化的欄位直接保留
-                year2_standardized[col] = year2_clean[col]
+                year2_tor_standardized[col] = year2_tor_clean[col]
             else:
                 # 標準化處理
-                year2_standardized[col] = scaler.fit_transform(year2_clean[[col]]).flatten()
+                year2_tor_standardized[col] = scaler.fit_transform(year2_tor_clean[[col]]).flatten()
 
-        return year1_standardized, year2_standardized
+        for col in year2_ele_clean.columns:
+            if col in skip_columns:
+                # 不進行標準化的欄位直接保留
+                year2_ele_standardized[col] = year2_ele_clean[col]
+            else:
+                # 標準化處理
+                year2_ele_standardized[col] = scaler.fit_transform(year2_ele_clean[[col]]).flatten()
+
+        return year1_tor_standardized, year1_ele_standardized, year2_tor_standardized, year2_ele_standardized
 
     def know(self):
         """
@@ -158,7 +199,6 @@ class trainingData:
         從Excel取得特定欄位的名稱，將輸出特定欄位的陣列
         利於後續進行處理
         
-        return array
         """
         # 已經從Excel中確認欄位的名稱，複製並處理
         electrophysiological_data = "DML_Med_R_1,CMAP_Med_R_1,MNCV_Med_R_1,DML_Med_L_1,CMAP_Med_L_1,MNCV_Med_L_1,DML_Ula_R_1,CMAP_Ula_R_1,MNCV_Ula_R_1,DML_Ula_L_1,CMAP_Ula_L_1,MNCV_Ula_L_1,DML_Per_R_1,CMAP_Per_R_1,MNCV_Per_R_1,DML_Per_L_1,CMAP_Per_L_1,MNCV_Per_L_1,DML_Tib_R_1,CMAP_Tib_R_1,MNCV_Tib_R_1,DML_Tib_L_1,CMAP_Tib_L_1,MNCV_Tib_L_1,F_Med_R_1,F_Med_L_1,F_Ula_R_1,F_Ula_L_1,F_Per_R_1,F_Per_L_1,F_Tib_R_1,F_Tib_L_1,H_reflex_R_1,H_Reflex_L_1,SLO_Med_R_1,SNAP_Med_R_1,SNCV_Med_R_1,SLO_MP_R_1,SNAP_MP_R_1,SNCV_MP_R_1,SLO_Med_L_1,SNAP_Med_L_1,SNCV_Med_L_1,SLO_MP_L_1,SNAP_MP_L_1,SNCV_MP_L_1,SLO_Ula_R_1,SNAP_Ula_R_1,SNCV_Ula_R_1,SLO_Ula_L_1,SNAP_Ula_L_1,SNCV_Ula_L_1,SLO_Sur_R_1,SNAP_Sur_R_1,SNCV_Sur_R_1,SLO_Sur_L_1,SNAP_Sur_L_1,SNCV_Sur_L_1".split(",")
@@ -170,10 +210,6 @@ class trainingData:
         year2 = [[i.replace("_1","_2") for i in electrophysiological_data ],[ j.replace("_1","_2") for j in toronto],target.replace("_1","_2")]
         
         return year1 , year2
-    
-    def haha():
-        num=1
-        print(num)
     
 if __name__ == "__main__":
     d = trainingData().standardize()
