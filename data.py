@@ -171,6 +171,10 @@ class trainingData:
         
         return year1 , year2
     
+    def haha():
+        num=1
+        print(num)
+    
 if __name__ == "__main__":
     d = trainingData().standardize()
     print(d)
