@@ -14,7 +14,7 @@ from sklearn.metrics import make_scorer
 
 class Evaluate:
     @staticmethod
-    def model(model_name, model, X_test, y_test,year):
+    def model(model_name, model, X_test, y_test,year,data_type):
         """
         評估模型
         """
@@ -30,7 +30,7 @@ class Evaluate:
         cm = confusion_matrix(y_test, y_pred)
 
         # 個別 ROC 曲線繪製
-        Evaluate._plot_individual_roc(y_test, y_pred_probs, model_name,year)
+        Evaluate._plot_individual_roc(y_test, y_pred_probs, model_name,year,data_type)
 
         return {
             "Accuracy": accuracy,
@@ -67,7 +67,7 @@ class Evaluate:
         return results
 
     @staticmethod
-    def _plot_individual_roc(y_test, y_pred_probs, model_name,year):
+    def _plot_individual_roc(y_test, y_pred_probs, model_name,year,data_type):
         """
         繪製單一模型的 ROC 曲線
         """
@@ -79,11 +79,11 @@ class Evaluate:
         plt.ylabel("True Positive Rate")
         plt.title(f"ROC Curve for {model_name}")
         plt.legend(loc="best")
-        plt.savefig(f"./result/{model_name}_roc_curve_{year}.png")
+        plt.savefig(f"./result/pic/{model_name}_roc_curve_{data_type}{year}.png")
         plt.close()
 
     @staticmethod
-    def plot_combined_roc(models_results,year):
+    def plot_combined_roc(models_results,year,data_type):
         """
         繪製所有模型的合併 ROC 曲線
         """
@@ -96,5 +96,5 @@ class Evaluate:
         plt.ylabel("True Positive Rate")
         plt.title("Combined ROC Curve")
         plt.legend(loc="best")
-        plt.savefig(f"./result/combined_roc_curve_{year}.png")
+        plt.savefig(f"./result/pic/combined_roc_curve_{data_type}{year}.png")
         plt.close()

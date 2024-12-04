@@ -61,10 +61,10 @@ def rf_model_fn(params):
 # 定義超參數空間
 def rf_param_space(trial):
     return {
-        "n_estimators": trial.suggest_int("n_estimators", 50, 300),
-        "max_depth": trial.suggest_int("max_depth", 5, 30),
-        "min_samples_split": trial.suggest_int("min_samples_split", 2, 10),
-        "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 5),
+        "n_estimators": trial.suggest_int("n_estimators", 50, 1000),  # 擴展樹的數量範圍
+        "max_depth": trial.suggest_int("max_depth", 2, 50),  # 擴展樹深度範圍
+        "min_samples_split": trial.suggest_int("min_samples_split", 2, 50),  # 增大分裂樣本數
+        "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 50),  # 增大葉節點樣本數
     }
 
 # 執行優化
@@ -75,7 +75,7 @@ best_rf_model, best_rf_params = hyperparameter_optimization(
     y_train=y_train,
     scoring="recall",
     cv=5,
-    n_trials=50,
+    n_trials=1000,
 )
 
 print("最佳參數（RF）：", best_rf_params)
@@ -91,8 +91,8 @@ def adaboost_model_fn(params):
 # 定義超參數空間
 def adaboost_param_space(trial):
     return {
-        "n_estimators": trial.suggest_int("n_estimators", 50, 300),  # 樹的數量
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 1.0, log=True),  # 學習率
+        "n_estimators": trial.suggest_int("n_estimators", 50, 1000),  # 擴展樹的數量範圍
+        "learning_rate": trial.suggest_float("learning_rate", 0.001, 2.0, log=True),  # 擴展學習率範圍
     }
 
 best_adaboost_model, best_adaboost_params = hyperparameter_optimization(
@@ -102,7 +102,7 @@ best_adaboost_model, best_adaboost_params = hyperparameter_optimization(
     y_train=y_train,
     scoring="recall",
     cv=5,
-    n_trials=50,
+    n_trials=1000,
 )
 
 print("最佳參數（AdaBoost）：", best_adaboost_params)
@@ -123,15 +123,16 @@ def xgboost_model_fn(params):
 # 定義超參數空間
 def xgboost_param_space(trial):
     return {
-        "n_estimators": trial.suggest_int("n_estimators", 50, 300),  # 樹的數量
-        "max_depth": trial.suggest_int("max_depth", 3, 20),  # 樹的最大深度
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),  # 學習率
-        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),  # 每棵樹的特徵子集比例
-        "subsample": trial.suggest_float("subsample", 0.5, 1.0),  # 每棵樹的樣本子集比例
-        "gamma": trial.suggest_float("gamma", 0, 5),  # 節點分裂的最小損失減少
-        "reg_alpha": trial.suggest_float("reg_alpha", 0, 10),  # L1 正則化項
-        "reg_lambda": trial.suggest_float("reg_lambda", 0, 10),  # L2 正則化項
+        "n_estimators": trial.suggest_int("n_estimators", 50, 1000),  # 擴展樹的數量範圍
+        "max_depth": trial.suggest_int("max_depth", 2, 50),  # 擴展樹深度範圍
+        "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.5, log=True),  # 擴展學習率範圍
+        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.3, 1.0),  # 擴展列採樣比例
+        "subsample": trial.suggest_float("subsample", 0.3, 1.0),  # 擴展樣本子集比例
+        "gamma": trial.suggest_float("gamma", 0, 10),  # 擴展分裂損失範圍
+        "reg_alpha": trial.suggest_float("reg_alpha", 0, 20),  # 擴展 L1 正則化範圍
+        "reg_lambda": trial.suggest_float("reg_lambda", 0, 20),  # 擴展 L2 正則化範圍
     }
+
 
 best_xgboost_model, best_xgboost_params = hyperparameter_optimization(
     model_fn=xgboost_model_fn,
@@ -140,7 +141,7 @@ best_xgboost_model, best_xgboost_params = hyperparameter_optimization(
     y_train=y_train,
     scoring="recall",
     cv=5,
-    n_trials=50,
+    n_trials=1000,
 )
 
 print("最佳參數（XGBoost）：", best_xgboost_params)

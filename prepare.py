@@ -24,8 +24,8 @@ from data import trainingData
 from matplotlib import rc
 
 # NOTE:顏總你電腦室windows記得調整成Microsogt JhengHei
-# rc('font', family='Heiti TC')  # "PingFang TC" 是繁體中文版本
-rc('font', family='Microsoft JhengHei')
+rc('font', family='Heiti TC')  # "PingFang TC" 是繁體中文版本
+# rc('font', family='Microsoft JhengHei')
 
 class prepare:
     """
@@ -67,7 +67,7 @@ class prepare:
         
         # 選擇資料集
         data = self.standard_data if standard else self.origin_data
-        print(f'data:{data}')
+        # print(f'data:{data}')
         key = f'year{year}_{data_type}'
 
         if key not in data:
