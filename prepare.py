@@ -13,6 +13,7 @@
 是否有神經病變_確診神經病變
 """
 
+import re
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -23,8 +24,8 @@ from data import trainingData
 from matplotlib import rc
 
 # NOTE:顏總你電腦室windows記得調整成Microsogt JhengHei
-rc('font', family='Heiti TC')  # "PingFang TC" 是繁體中文版本
-# rc('font', family='Microsoft JhengHei')
+# rc('font', family='Heiti TC')  # "PingFang TC" 是繁體中文版本
+rc('font', family='Microsoft JhengHei')
 
 class prepare:
     """
@@ -36,13 +37,21 @@ class prepare:
         ob = trainingData()
         self.origin_data =  ob.preprocess()
         self.standard_data = ob.standardize()
+        self.origin_data = {
+            "year1_ele": self.origin_data[0],
+            "year1_tor": self.origin_data[1],
+            "year2_ele": self.origin_data[2],
+            "year2_tor": self.origin_data[3],
+        }
 
     def getTrainingData(self,
                         use_all_feature = True,
                         standard=False,
                         year=1,
+                        data_type="ele",  # 資料類型：'ele' 或 'tor'
                         test_size=0.2,
-                        random_state=42):
+                        random_state=42,
+                        common_features=None,):
         """
         取得訓練資料
 
@@ -50,20 +59,38 @@ class prepare:
         @params test_size 驗證集大小
         @params random_state 隨機種子
         @params year 有關資料集的年編號
-
+        @params data_type: 選擇 'ele' 或 'tor' 資料
+        @params common_features: 交集的特徵列表
         return X_train, X_test, y_train, y_test
         """
+
+        
         # 選擇資料集
         data = self.standard_data if standard else self.origin_data
-        data = data[1-year]
+        print(f'data:{data}')
+        key = f'year{year}_{data_type}'
 
-        if use_all_feature:
-            features = data.drop(columns=[f"確診神經病變_{year}"])
+        if key not in data:
+            raise ValueError(f"資料集中沒有鍵 {key}，請確認年份和資料類型參數是否正確！")
+
+        selected_data = data[key]
+
+        # 動態決定 '_1' 或 '_2' 的後綴
+        def add_suffix_based_on_year(features, year):
+            suffix = f"_{year}"  # 如果 year == 1，則加上 '_1'；如果是 year == 2，則加上 '_2'
+            return [f"{feature}{suffix}" for feature in features]
+        
+        if common_features:     # 假設有加入交集特徵，就取得交集特徵的欄位
+            common_features_with_suffix = add_suffix_based_on_year(common_features, year)
+            features = selected_data[common_features_with_suffix]
+
+        elif use_all_feature:
+            features = selected_data.drop(columns=[f"確診神經病變_{year}"])
         else:
             features_selected = ['SNAP_Sur_L_1', 'SNCV_Sur_L_1', 'SNAP_Sur_R_1', 'SLO_Sur_L_1', 'SNCV_Sur_R_1', 'MNCV_Tib_L_1', 'MNCV_Per_L_1']
-            features = data[features_selected]
+            features = selected_data[features_selected]
 
-        target = data[f"確診神經病變_{year}"]
+        target = selected_data[f"確診神經病變_{year}"]
 
         # 分割資料集
         X_train, X_test, y_train, y_test = train_test_split(
@@ -72,7 +99,7 @@ class prepare:
 
         return X_train, X_test, y_train, y_test
 
-    def feature_importance(self, X_train, y_train):
+    def feature_importance(self, X_train, y_train, year, type):
         """
         計算特徵重要性，輸出所有特徵圖表、前 15 個重要特徵及高於 4% 的特徵。
 
@@ -84,7 +111,6 @@ class prepare:
         # 使用隨機森林模型進行特徵重要性分析
         model = RandomForestClassifier(random_state=42)
         model.fit(X_train, y_train)
-
         # 獲取特徵重要性
         importances = model.feature_importances_
         feature_names = X_train.columns
@@ -101,10 +127,10 @@ class prepare:
         plt.barh(importance_df["特徵名稱"], importance_df["重要性"], color='skyblue')
         plt.xlabel("特徵重要性")
         plt.ylabel("特徵名稱")
-        plt.title("所有特徵的重要性")
+        plt.title(f"所有特徵的重要性 ，第{year}年 {type}")
         plt.gca().invert_yaxis()  # 翻轉 Y 軸
         plt.tight_layout()  # 自動調整以避免文字重疊
-        plt.show()
+        # plt.show()
 
         # 2. 輸出前 15 個重要特徵的圖表
         top_15_features = importance_df.head(15)
@@ -112,10 +138,10 @@ class prepare:
         plt.barh(top_15_features["特徵名稱"], top_15_features["重要性"], color='orange')
         plt.xlabel("特徵重要性")
         plt.ylabel("特徵名稱")
-        plt.title("前 15 個特徵的重要性")
+        plt.title(f"前 15 個特徵的重要性，第{year}年 {type}" )
         plt.gca().invert_yaxis()  # 翻轉 Y 軸
         plt.tight_layout()
-        plt.show()
+        # plt.show()
 
         # 3. 篩選出高於 4% 的特徵（調整閾值以適應數據）
         threshold = 0.04
@@ -127,10 +153,10 @@ class prepare:
             plt.barh(filtered_features["特徵名稱"], filtered_features["重要性"], color='lightgreen')
             plt.xlabel("特徵重要性")
             plt.ylabel("特徵名稱")
-            plt.title(f"特徵重要性 ≥ {threshold * 100}%")
+            plt.title(f"特徵重要性 ≥ {threshold * 100}% ，第{year}年 {type}" )
             plt.gca().invert_yaxis()  # 翻轉 Y 軸
             plt.tight_layout()
-            plt.show()
+            # plt.show()
 
             # 返回高於 4% 的特徵名稱列表
             high_importance_features = filtered_features["特徵名稱"].tolist()
@@ -145,12 +171,51 @@ class prepare:
         return filtered_features, high_importance_features
 
     def run(self):
-        """
-        主執行
-        """
-        X_train, X_test, y_train, y_test = self.getTrainingData()
-        print(self.feature_importance(X_train,y_train))
+        all_important_feature=[] # 儲存所有年分與量表的重要特徵 [year1_ele, year1_tor, year2_ele, year2_tor]
+        for year in [1, 2]:
+            for data_type in ["ele", "tor"]:
+                print(f"處理第 {year} 年的 {data_type} 資料")
+                X_train, X_test, y_train, y_test = self.getTrainingData(year=year, data_type=data_type)
+                self.feature_importance(X_train, y_train, year, data_type)
+                all_important_feature.append((self.feature_importance(X_train, y_train, year, data_type))[1])
+        
+        # 清理特徵名稱，去掉 "_1" 和 "_2"
+        def clean_feature_name(feature):
+            return re.sub(r'(_1|_2)$', '', feature)
 
+        # 將 all_important_feature 中的每個特徵名稱進行清理
+        cleaned_all_important_feature = [
+            [clean_feature_name(feature) for feature in all_important_feature[0]],  # 第一年的 ele
+            [clean_feature_name(feature) for feature in all_important_feature[1]],  # 第一年的 tor
+            [clean_feature_name(feature) for feature in all_important_feature[2]],  # 第二年的 ele
+            [clean_feature_name(feature) for feature in all_important_feature[3]],  # 第二年的 tor
+        ]
+
+        # 使用 set 計算第一年和第二年 ele 特徵的交集
+        ele_common = set(cleaned_all_important_feature[0]) & set(cleaned_all_important_feature[2])
+
+        # 使用 set 計算第一年和第二年 tor 特徵的交集
+        tor_common = set(cleaned_all_important_feature[1]) & set(cleaned_all_important_feature[3])
+
+        # 輸出結果
+        print("共同的 ele 特徵：", ele_common)
+        print("共同的 tor 特徵：", tor_common)
+
+        # 將交集特徵傳遞給 getTrainingData 方法
+        for year in [1, 2]:
+            for data_type in ["ele", "tor"]:
+                print(f"處理第 {year} 年的 {data_type} 資料，使用交集特徵")
+                if data_type == "ele":
+                    common_features = list(ele_common)
+                else:
+                    common_features = list(tor_common)
+
+                X_train, X_test, y_train, y_test = self.getTrainingData(
+                    year=year,
+                    data_type=data_type,
+                    common_features=common_features  # 傳遞交集特徵
+                )
 
 if __name__ == "__main__":
-    prepare().run_model_predict()
+    data= prepare().run()
+    print(data)
