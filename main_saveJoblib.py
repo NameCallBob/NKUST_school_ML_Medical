@@ -17,9 +17,9 @@ if __name__ == "__main__":
             evaluator = Evaluate()
 
             # 訓練模型
-            model_handler.train_rf(X_train, y_train,True,f"{j}_{i}")
-            model_handler.train_xgboost(X_train, y_train,True,f"{j}_{i}")
-            model_handler.train_adaboost(X_train, y_train,True,f"{j}_{i}")
+            model_handler.train_rf(X_train, y_train,True,j,f"{j}_{i}")
+            model_handler.train_xgboost(X_train, y_train,True,j,f"{j}_{i}")
+            model_handler.train_adaboost(X_train, y_train,True,j,f"{j}_{i}")
 
             # 評估模型和交叉驗證
             models_results = {}

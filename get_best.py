@@ -52,7 +52,11 @@ def hyperparameter_optimization(
 from sklearn.ensemble import RandomForestClassifier
 from prepare import prepare
 
-X_train, X_test, y_train, y_test = prepare().getTrainingData()
+X_train, X_test, y_train, y_test = prepare().getTrainingData(
+    year=1,
+    test_size=0.8,
+    data_type="tor"
+)
 # RF
 # 定義模型函式
 def rf_model_fn(params):
@@ -146,4 +150,3 @@ best_xgboost_model, best_xgboost_params = hyperparameter_optimization(
 
 print("最佳參數（XGBoost）：", best_xgboost_params)
 print("測試集準確率（XGBoost）：", best_xgboost_model.score(X_test, y_test))
-

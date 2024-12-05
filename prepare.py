@@ -24,8 +24,8 @@ from data import trainingData
 from matplotlib import rc
 
 # NOTE:顏總你電腦室windows記得調整成Microsogt JhengHei
-rc('font', family='Heiti TC')  # "PingFang TC" 是繁體中文版本
-# rc('font', family='Microsoft JhengHei')
+# rc('font', family='Heiti TC')  # "PingFang TC" 是繁體中文版本
+rc('font', family='Microsoft JhengHei')
 
 class prepare:
     """
@@ -64,7 +64,7 @@ class prepare:
         return X_train, X_test, y_train, y_test
         """
 
-        
+
         # 選擇資料集
         data = self.standard_data if standard else self.origin_data
         # print(f'data:{data}')
@@ -79,7 +79,7 @@ class prepare:
         def add_suffix_based_on_year(features, year):
             suffix = f"_{year}"  # 如果 year == 1，則加上 '_1'；如果是 year == 2，則加上 '_2'
             return [f"{feature}{suffix}" for feature in features]
-        
+
         if common_features:     # 假設有加入交集特徵，就取得交集特徵的欄位
             common_features_with_suffix = add_suffix_based_on_year(common_features, year)
             features = selected_data[common_features_with_suffix]
@@ -87,7 +87,14 @@ class prepare:
         elif use_all_feature:
             features = selected_data.drop(columns=[f"確診神經病變_{year}"])
         else:
-            features_selected = ['SNAP_Sur_L_1', 'SNCV_Sur_L_1', 'SNAP_Sur_R_1', 'SLO_Sur_L_1', 'SNCV_Sur_R_1', 'MNCV_Tib_L_1', 'MNCV_Per_L_1']
+            if data_type == "ele":
+                features_selected = ['H_Reflex_L', 'SNCV_Sur_R', 'F_Tib_L', 'MNCV_Tib_L', 'SLO_Sur_L', 'SLO_Sur_R', 'SNAP_Sur_L', 'CMAP_Tib_L', 'F_Tib_R', 'SNAP_Sur_R', 'SNAP_Ula_R']
+            elif data_type == "tor":
+                features_selected = ['有主觀徵象', '多倫多_knee左', '多倫多_碰鈍右', '多倫多_knee右', '多倫多_ankle左', '多倫多_刺鈍左', '多倫多_JPS鈍左', '多倫多_ankle右', '多倫多_刺', '多倫多_麻', '多倫多_JPS鈍右', '多倫多_振鈍左']
+            # elif data_type == "combined":
+            #     features_selected = ['有主觀徵象', '多倫多_knee左', '多倫多_碰鈍右', '多倫多_knee右', '多倫多_ankle左', '多倫多_刺鈍左', '多倫多_JPS鈍左', '多倫多_ankle右', '多倫多_刺', '多倫多_麻', '多倫多_JPS鈍右', '多倫多_振鈍左','H_Reflex_L', 'SNCV_Sur_R', 'F_Tib_L', 'MNCV_Tib_L', 'SLO_Sur_L', 'SLO_Sur_R', 'SNAP_Sur_L', 'CMAP_Tib_L', 'F_Tib_R', 'SNAP_Sur_R', 'SNAP_Ula_R']
+            else:
+                raise KeyError("請輸入ele或tor")
             features = selected_data[features_selected]
 
         target = selected_data[f"確診神經病變_{year}"]
@@ -142,7 +149,8 @@ class prepare:
         plt.gca().invert_yaxis()  # 翻轉 Y 軸
         plt.tight_layout()
         # plt.show()
-
+        print("輸出前 15 個重要特徵 :")
+        print(top_15_features["特徵名稱"])
         # 3. 篩選出高於 4% 的特徵（調整閾值以適應數據）
         threshold = 0.04
         filtered_features = importance_df[importance_df["重要性"] >= threshold]
@@ -168,17 +176,19 @@ class prepare:
         print(f"\n高於 {threshold * 100}% 的重要特徵名稱：")
         print(high_importance_features)
 
-        return filtered_features, high_importance_features
+        return filtered_features, high_importance_features,top_15_features['特徵名稱']
 
     def run(self):
         all_important_feature=[] # 儲存所有年分與量表的重要特徵 [year1_ele, year1_tor, year2_ele, year2_tor]
+        top15_feature = []
         for year in [1, 2]:
             for data_type in ["ele", "tor"]:
                 print(f"處理第 {year} 年的 {data_type} 資料")
                 X_train, X_test, y_train, y_test = self.getTrainingData(year=year, data_type=data_type)
-                self.feature_importance(X_train, y_train, year, data_type)
-                all_important_feature.append((self.feature_importance(X_train, y_train, year, data_type))[1])
-        
+                feature = self.feature_importance(X_train, y_train, year, data_type)
+                all_important_feature.append(feature[1])
+                top15_feature.append(feature[2])
+
         # 清理特徵名稱，去掉 "_1" 和 "_2"
         def clean_feature_name(feature):
             return re.sub(r'(_1|_2)$', '', feature)
@@ -198,24 +208,43 @@ class prepare:
         tor_common = set(cleaned_all_important_feature[1]) & set(cleaned_all_important_feature[3])
 
         # 輸出結果
+        print("高相關:")
+        print("共同的 ele 特徵：", ele_common)
+        print("共同的 tor 特徵：", tor_common)
+
+        # 將 top15_feature 中的每個特徵名稱進行清理
+        cleaned_all_important_feature = [
+            [clean_feature_name(feature) for feature in top15_feature[0]],  # 第一年的 ele
+            [clean_feature_name(feature) for feature in top15_feature[1]],  # 第一年的 tor
+            [clean_feature_name(feature) for feature in top15_feature[2]],  # 第二年的 ele
+            [clean_feature_name(feature) for feature in top15_feature[3]],  # 第二年的 tor
+        ]
+
+        # 使用 set 計算第一年和第二年 ele 特徵的交集
+        ele_common = set(cleaned_all_important_feature[0]) & set(cleaned_all_important_feature[2])
+
+        # 使用 set 計算第一年和第二年 tor 特徵的交集
+        tor_common = set(cleaned_all_important_feature[1]) & set(cleaned_all_important_feature[3])
+
+        # 輸出結果
+        print("前15個：")
         print("共同的 ele 特徵：", ele_common)
         print("共同的 tor 特徵：", tor_common)
 
         # 將交集特徵傳遞給 getTrainingData 方法
-        for year in [1, 2]:
-            for data_type in ["ele", "tor"]:
-                print(f"處理第 {year} 年的 {data_type} 資料，使用交集特徵")
-                if data_type == "ele":
-                    common_features = list(ele_common)
-                else:
-                    common_features = list(tor_common)
+        # for year in [1, 2]:
+        #     for data_type in ["ele", "tor"]:
+        #         print(f"處理第 {year} 年的 {data_type} 資料，使用交集特徵")
+        #         if data_type == "ele":
+        #             common_features = list(ele_common)
+        #         else:
+        #             common_features = list(tor_common)
 
-                X_train, X_test, y_train, y_test = self.getTrainingData(
-                    year=year,
-                    data_type=data_type,
-                    common_features=common_features  # 傳遞交集特徵
-                )
+        #         X_train, X_test, y_train, y_test = self.getTrainingData(
+        #             year=year,
+        #             data_type=data_type,
+        #             common_features=common_features  # 傳遞交集特徵
+        #         )
 
 if __name__ == "__main__":
     data= prepare().run()
-    print(data)
