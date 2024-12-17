@@ -1,2 +1,6 @@
 *.xlsx
 *.csv
+
+
+# 保存模型
+*.joblib
