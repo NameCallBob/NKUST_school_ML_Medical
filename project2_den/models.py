@@ -9,7 +9,7 @@ class Models:
 
     def train_rf(self, X_train, y_train ,save_model=True ):
         best_tree = {}
-        rf = RandomForestClassifier(**best_tree, random_state=42)
+        rf = RandomForestClassifier(**best_tree, random_state=42 , n_jobs=-1)
         rf.fit(X_train, y_train)
         self.models["RandomForest"] = rf
         if save_model:

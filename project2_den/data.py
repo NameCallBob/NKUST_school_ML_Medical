@@ -38,7 +38,7 @@ class Data:
                 self.__missing_value_report(all_data[data_count],
                                             all_data_name[data_count])
             return
-        
+
         # den的資料與其他欄位不相同，在第一個迴圈需特殊處理
         for data_count in range(len(all_data)):
             if data_count in [0,1]  :
@@ -53,8 +53,8 @@ class Data:
                                     'rcvdat',
                                     'rcvtm',
                                     )
-                
-                
+
+
             else:
                 # 將日期時間轉為pandas可處理型態
                 all_data[data_count]['cltdat'] = pd.to_datetime(all_data[data_count]['cltdat'], format='%Y%m%d', errors='coerce')
@@ -69,10 +69,10 @@ class Data:
                 all_data[data_count] = self.add_gender_column(
                     all_data[data_count],'opdno'
                 )
-                
+
             # 添加疾病類別
             all_data[data_count]['sick_type'] = data_count
-  
+
             # 增加是否正常的判別欄位
             all_data[data_count] = self.add_normal_flag(
                 all_data[data_count], 'labrefcval', 'labresuval','sex')
@@ -158,7 +158,7 @@ class Data:
                     except ValueError:
                         print(f"解析失敗：{match}")
                 return parsed_conditions
-            
+
             def parse_gender_value_condition(condition):
                 """
                 支援性別與範圍條件的解析，例如 "M:0.64~1.27,F:0.44~1.03"。
@@ -182,7 +182,7 @@ class Data:
                     return numbers
                 except ValueError:
                     return []
-                
+
             def parse_mixed_condition(condition):
                 """
                 提取混合條件中的數值。
@@ -195,7 +195,7 @@ class Data:
                     value = float(match[1])
                     parsed_conditions.append({'operator': operator, 'value': value})
                 return parsed_conditions
-            
+
             # 主邏輯
             condition = row[condition_col]
             value = row[value_col]
@@ -214,7 +214,7 @@ class Data:
                 error_reason = "測量值格式錯誤"
                 print(f"Row {row.name}: {error_reason} {condition}")
                 return None
-            
+
             value = float(value)
 
             if gender_col and ':' in condition:
@@ -234,7 +234,7 @@ class Data:
                     # 若性別不匹配，則比較最大值
                     if not matched and max_upper is not None:
                         return 1 if value <= max_upper else 0
-            
+
             # 性別條件判斷
             if gender_col and any(char in condition for char in ['M', 'F']):
                 gender_conditions = parse_gender_age_condition(condition)
@@ -253,7 +253,7 @@ class Data:
                 # 若性別不匹配，則比較最大值
                 if not matched and max_upper is not None:
                     return 1 if value <= max_upper else 0
-            
+
             if '-' in condition:
                 lower, upper = parse_range_condition(condition)
                 if lower is None or upper is None:
@@ -266,7 +266,7 @@ class Data:
                     error_reason = "範圍格式錯誤"
                     return None
                 return 1 if lower <= value <= upper else 0
-            
+
             # 處理混合條件
             if '<' in condition and '>' in condition:
                 parsed_conditions = parse_mixed_condition(condition)
@@ -285,7 +285,7 @@ class Data:
                     error_reason = "小於條件格式錯誤"
                     print(f"Row {row.name} {value}: {error_reason} {condition}")
                     return None
-                
+
             elif '>' in condition:
                 try:
                     threshold = float(condition.replace('>', '').strip())
@@ -308,8 +308,6 @@ class Data:
         # 遍歷行數據
         data['is_normal'] = data.apply(is_normal, axis=1)
         return data
-
-
 
     def __missing_value_report(self,dataframe,name):
         # 找出有缺失值的欄位及列
@@ -384,7 +382,7 @@ class Data:
 
         # 刪除輔助列，還原結構
         result.drop(columns=['datetime'], inplace=True)
-        return result    
+        return result
 
     def __fill_missing_values_by_hour(self,dataframe, group_column, date_column, time_column, target_columns):
         """
@@ -439,16 +437,14 @@ class Data:
 
         return result
 
-    # 建立性別欄位
-    
     def add_gender_column(self , dataframe, opdno_column):
         """
         根據 opdno 添加性別欄位，並使用字典緩存性別數據。
-        
+
         Args:
             dataframe (pd.DataFrame): 原始資料框。
             opdno_column (str): opdno 所在的欄位名稱。
-        
+
         Returns:
             pd.DataFrame: 添加性別欄位後的資料框。
         """
@@ -458,7 +454,7 @@ class Data:
         # 遍歷所有 opdno
         for index, row in dataframe.iterrows():
             opdno = row[opdno_column]
-            
+
             # 檢查性別是否已在緩存中
             for gender_cache in all_data_sex:
                 if opdno in gender_cache:
@@ -472,5 +468,70 @@ class Data:
 
         return dataframe
 
+    def test_test(self, output_NaN=False):
+        """
+        測試學姊的程式碼邏輯於自身
+        """
+        import os
+        data_files = [
+            "./data/den0.csv",
+            "./data/flu0.csv",
+            "./data/sep0.csv",
+            "./data/gen0.csv",
+            "./data/gen1.csv"
+        ]
+        data_names = ["den_data", "flu_data", "sep_data", "gen_data_0", "gen_data_1"]
+
+        output_dir = "./data/result_tmp/"
+        os.makedirs(output_dir, exist_ok=True)
+
+        if output_NaN:
+            # 缺失值報告
+            for i, file in enumerate(data_files):
+                data = pd.read_csv(file)
+                self.__missing_value_report(data, data_names[i])
+            return
+
+        # 處理所有檔案
+        for i, file in enumerate(data_files):
+            print(f"處理檔案: {file}")
+            data = pd.read_csv(file)
+
+            # 日期與時間處理
+            if 'rcvdat' in data.columns:
+                data['ipdat'] = pd.to_datetime(data['rcvdat'], format='%Y%m%d', errors='coerce')
+                data['cltdat'] = pd.to_datetime(data['rcvdat'], format='%Y%m%d', errors='coerce')
+                data['clttm'] = pd.to_datetime(data['rcvtm'], format='%H%M', errors='coerce').dt.time
+            else:
+                data['ipdat'] = pd.to_datetime(data['ipdat'], format='%Y%m%d', errors='coerce')
+                data['cltdat'] = pd.to_datetime(data['cltdat'], format='%Y%m%d', errors='coerce')
+                data['clttm'] = pd.to_datetime(data['clttm'], format='%H%M', errors='coerce').dt.time
+
+            # 檢測時間過濾: 3 天內
+            data['days_diff'] = (data['cltdat'] - data['ipdat']).dt.days
+            data = data[data['days_diff'] <= 3]
+
+            # 缺失值處理: 前後補值
+            data = data.sort_values(by=['idcode', 'opdno', 'cltdat', 'clttm'])
+            data = data.groupby(['idcode', 'opdno']).apply(lambda group: group.ffill().bfill()).reset_index(drop=True)
+
+            # 生成透視表 (Pivot Table)
+            pivot_table = data.pivot_table(
+                index=["idcode", "opdno", "ipdat"],
+                columns="labnmabv",
+                values="labresuval",
+                aggfunc="count",
+                fill_value=0
+            ).reset_index()
+
+            # 篩選測量次數大於等於 2 的病患
+            pivot_table = pivot_table[(pivot_table["WBC"] >= 2) | (pivot_table["Hematocrit"] >= 2)]
+
+            # 保存結果
+            output_file = os.path.join(output_dir, f"{data_names[i]}_processed.csv")
+            pivot_table.to_csv(output_file, index=False)
+            print(f"結果已保存: {output_file}")
+
 if __name__ == "__main__":
-    Data().save_result()
+    # Data().save_result()
+    Data().test_test()

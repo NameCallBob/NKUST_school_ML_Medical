@@ -33,14 +33,14 @@ if __name__ == "__main__":
 
     for model_name, train_func in models_to_train.items():
         print(f"\n--- 正在訓練 {model_name} 模型 ---")
-        
+
         # 訓練模型
         train_func(X_train, y_train, SAVE_MODEL)
         model = model_handler.get_models()[model_name]
 
         # 評估模型
         print(f"\n正在評估 {model_name} 模型...")
-        model_metrics = evaluator.model(model_name, model, X_train, X_test, y_train, y_test)
+        model_metrics = evaluator.model(model_name, model, X_train , y_train, X_test, y_test)
 
         # 評估交叉驗證
         cross_val_metrics = evaluator.cross_val(model, X_train, y_train, n_split=10)
@@ -49,12 +49,21 @@ if __name__ == "__main__":
         # 整合結果
         result_data = {
             "Model": model_name,
-            "Accuracy": model_metrics["Accuracy"],
-            "Precision": model_metrics["Precision"],
-            "Recall": model_metrics["Recall"],
-            "F1 Score": model_metrics["F1 Score"],
-            "AUC": model_metrics["AUC"],
+            # 訓練指標
+            "Train Accuracy": model_metrics["Train Metrics"]["Accuracy"],
+            "Train Precision": model_metrics["Train Metrics"]["Precision"],
+            "Train Recall": model_metrics["Train Metrics"]["Recall"],
+            "Train F1 Score": model_metrics["Train Metrics"]["F1 Score"],
+            "Train AUC": model_metrics["Train Metrics"]["AUC"],
+            # 測試指標
+            "Test Accuracy": model_metrics["Test Metrics"]["Accuracy"],
+            "Test Precision": model_metrics["Test Metrics"]["Precision"],
+            "Test Recall": model_metrics["Test Metrics"]["Recall"],
+            "Test F1 Score": model_metrics["Test Metrics"]["F1 Score"],
+            "Test AUC": model_metrics["Test Metrics"]["AUC"],
         }
+
+        # 添加交叉驗證結果
         result_data.update(
             {
                 f"{metric} (CV)": f"{mean:.4f} ± {std:.4f}"
@@ -62,11 +71,10 @@ if __name__ == "__main__":
             }
         )
 
+        # 添加到結果清單
         combined_results.append(result_data)
- 
+
         # 自動導出結果
         output_file = f"./result/{model_name.lower()}_evaluation.xlsx"
         pd.DataFrame([result_data]).to_excel(output_file, index=False)
         print(f"{model_name} 模型結果已導出至 {output_file}")
-
-    print("\n--- 所有模型訓練和評估結束 ---")
