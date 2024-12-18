@@ -2,6 +2,11 @@ import optuna
 from sklearn.model_selection import cross_val_score
 from sklearn.base import BaseEstimator
 from typing import Callable, Dict, Any, Tuple
+from sklearn.metrics import make_scorer
+from sklearn.model_selection import StratifiedKFold
+from sklearn.utils import parallel
+import joblib
+from sklearn.metrics import recall_score, make_scorer
 
 # 禁用 Optuna 日誌輸出
 optuna.logging.set_verbosity(optuna.logging.WARN)
@@ -14,9 +19,10 @@ def hyperparameter_optimization(
     scoring: str = "recall",
     cv: int = 5,
     n_trials: int = 1000,
+    n_jobs: int = -1  # 並行運行所有試驗
 ) -> Tuple[BaseEstimator, Dict[str, Any]]:
     """
-    使用 optuna 進行超參數優化。
+    使用 optuna 進行超參數優化，並進行並行計算。
 
     :param model_fn: 函式，用於創建模型實例，傳入參數為超參數字典。
     :param param_space: 函式，用於定義 optuna 的超參數搜索空間。
@@ -25,6 +31,7 @@ def hyperparameter_optimization(
     :param scoring: 評估指標（默認為 "recall"）。
     :param cv: 交叉驗證的折數（默認為 5）。
     :param n_trials: 優化的迭代次數（默認為 1000）。
+    :param n_jobs: 用於並行化的工作數量（默認 -1，表示使用所有可用核）。
     :return: 最佳模型實例和對應的最佳超參數字典。
     """
     def objective(trial):
@@ -32,13 +39,24 @@ def hyperparameter_optimization(
         params = param_space(trial)
         # 創建模型
         model = model_fn(params)
-        # 使用交叉驗證評估模型
-        score = cross_val_score(model, X_train, y_train, cv=cv, scoring=scoring, n_jobs=-1).mean()
+
+        # 根據 scoring 參數來設定 scoring 函數
+        if scoring == "recall":
+            scorer = make_scorer(recall_score)
+        else:
+            scorer = scoring  # 其他情況，可以傳遞自定義的可調用評分函數
+        
+        # 使用交叉驗證評估模型，並行化計算每一個折
+        cv_strategy = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+        score = cross_val_score(model, X_train, y_train, cv=cv_strategy, scoring=scorer, n_jobs=n_jobs).mean()
+        
         return score
 
     # 創建 optuna 的研究對象
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=n_trials)
+    
+    # 使用 Joblib 後端並行化
+    study.optimize(objective, n_trials=n_trials, n_jobs=n_jobs)
 
     # 獲取最佳參數
     best_params = study.best_params
@@ -50,13 +68,12 @@ def hyperparameter_optimization(
     return best_model, best_params
 
 from sklearn.ensemble import RandomForestClassifier
-from prepare import prepare
+from prepare import Prepare
 
-X_train, X_test, y_train, y_test = prepare().getTrainingData(
-    year=1,
-    test_size=0.8,
-    data_type="tor"
+X_train, X_test, y_train, y_test = Prepare().getTrainingData(
+        binary_classification=True, target_class=0, test_size=0.2
 )
+
 # RF
 # 定義模型函式
 def rf_model_fn(params):
@@ -85,9 +102,10 @@ best_rf_model, best_rf_params = hyperparameter_optimization(
 print("最佳參數（RF）：", best_rf_params)
 print("測試集準確率（RF）：", best_rf_model.score(X_test, y_test))
 
-from sklearn.ensemble import AdaBoostClassifier
 
 # Adaboost
+from sklearn.ensemble import AdaBoostClassifier
+
 # 定義模型函式
 def adaboost_model_fn(params):
     return AdaBoostClassifier(**params, random_state=42)
@@ -99,6 +117,7 @@ def adaboost_param_space(trial):
         "learning_rate": trial.suggest_float("learning_rate", 0.001, 2.0, log=True),  # 擴展學習率範圍
     }
 
+# 執行優化
 best_adaboost_model, best_adaboost_params = hyperparameter_optimization(
     model_fn=adaboost_model_fn,
     param_space=adaboost_param_space,
@@ -112,7 +131,8 @@ best_adaboost_model, best_adaboost_params = hyperparameter_optimization(
 print("最佳參數（AdaBoost）：", best_adaboost_params)
 print("測試集準確率（AdaBoost）：", best_adaboost_model.score(X_test, y_test))
 
-# Xgboost
+
+# XGBoost
 from xgboost import XGBClassifier
 
 # 定義模型函式
@@ -137,7 +157,7 @@ def xgboost_param_space(trial):
         "reg_lambda": trial.suggest_float("reg_lambda", 0, 20),  # 擴展 L2 正則化範圍
     }
 
-
+# 執行優化
 best_xgboost_model, best_xgboost_params = hyperparameter_optimization(
     model_fn=xgboost_model_fn,
     param_space=xgboost_param_space,

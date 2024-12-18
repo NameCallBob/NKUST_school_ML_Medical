@@ -5,6 +5,7 @@ if __name__ == "__main__":
     import pandas as pd
 
     SAVE_MODEL = False
+    
     """
     target class 有關於要判別的類別
     0 : den
@@ -12,6 +13,7 @@ if __name__ == "__main__":
     2 : sep
     3 : gen
     """
+
     # 準備數據
     X_train, X_test, y_train, y_test = Prepare().getTrainingData(
         binary_classification=True, target_class=0, test_size=0.2
