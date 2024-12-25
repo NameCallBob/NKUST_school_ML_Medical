@@ -8,15 +8,15 @@ if __name__ == "__main__":
     
     """
     target class 有關於要判別的類別
-    0 : den
-    1 : flu
-    2 : sep
+    1 : den
+    2 : flu
     3 : gen
+    4 : sep
     """
 
     # 準備數據
     X_train, X_test, y_train, y_test = Prepare().getTrainingData(
-        binary_classification=True, target_class=0, test_size=0.2
+        binary_classification=True, target_class=1, test_size=0.2
     )
 
     # 初始化模型和評估器
@@ -45,7 +45,7 @@ if __name__ == "__main__":
         model_metrics = evaluator.model(model_name, model, X_train , y_train, X_test, y_test)
 
         # 評估交叉驗證
-        cross_val_metrics = evaluator.cross_val(model, X_train, y_train, n_split=10)
+        cross_val_metrics = evaluator.cross_val(model, X_test, y_test, n_split=5)
         print(f"{model_name} 交叉驗證結果: {cross_val_metrics}\n")
 
         # 整合結果

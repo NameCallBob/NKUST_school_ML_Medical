@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -13,7 +14,6 @@ import numpy as np
 from sklearn.model_selection import KFold, cross_validate
 from sklearn.metrics import make_scorer
 from sklearn.preprocessing import label_binarize
-
 
 class Evaluate:
     @staticmethod
@@ -46,6 +46,10 @@ class Evaluate:
         y_train = Evaluate._ensure_1d(y_train)
         y_test = Evaluate._ensure_1d(y_test)
 
+        if not hasattr(model, "predict_proba"):
+            print(f"模型 {model_name} 不支援 predict_proba，無法計算 ROC 曲線或 AUC。")
+            return {"Error": "Model does not support predict_proba"}
+
         # 預測機率與類別
         y_pred_probs_test = model.predict_proba(X_test)
         y_pred_test = model.predict(X_test)
@@ -55,6 +59,10 @@ class Evaluate:
         # 多類別檢測
         classes = np.unique(y_train)
         n_classes = len(classes)
+
+        # 檢查 y_probs 維度是否與類別數量一致
+        if y_pred_probs_test.shape[1] != n_classes:
+            raise ValueError("y_probs 的列數與類別數量不匹配，請檢查輸出。")
 
         # 指標計算 (使用 macro average 適應多類別)
         metrics = {
@@ -69,6 +77,9 @@ class Evaluate:
 
         # ROC 曲線繪製
         Evaluate._plot_roc(y_test, y_pred_probs_test, model_name, classes)
+
+        # 混淆矩陣繪製
+        Evaluate.plot_confusion_matrix(y_test, y_pred_test, classes, model_name)
 
         results = {
             "Train Metrics": metrics["Train"],
@@ -146,6 +157,20 @@ class Evaluate:
         plt.close()
 
     @staticmethod
+    def plot_confusion_matrix(y_true, y_pred, classes, model_name):
+        """
+        繪製混淆矩陣
+        """
+        cm = confusion_matrix(y_true, y_pred, labels=classes)
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=classes, yticklabels=classes)
+        plt.xlabel("Predicted Labels")
+        plt.ylabel("True Labels")
+        plt.title(f"Confusion Matrix for {model_name}")
+        plt.savefig(f"./result/pic/{model_name}_confusion_matrix.png")
+        plt.close()
+
+    @staticmethod
     def cross_val(model, X, y, n_split):
         """
         執行交叉驗證 (支援多類別)
@@ -164,4 +189,20 @@ class Evaluate:
             for metric in scoring.keys()
         }
 
+        # 繪製交叉驗證結果
+        Evaluate.plot_cross_val_results(cv_results, scoring.keys(), model.__class__.__name__)
+
         return results
+
+    @staticmethod
+    def plot_cross_val_results(cv_results, metrics, model_name):
+        """
+        繪製交叉驗證結果的箱形圖
+        """
+        plt.figure(figsize=(10, 6))
+        for i, metric in enumerate(metrics, start=1):
+            plt.subplot(1, len(metrics), i)
+            plt.boxplot(cv_results[f'test_{metric}'])
+            plt.title(metric)
+        plt.savefig(f"./result/pic/{model_name}_cross_val.png")
+        plt.close()
