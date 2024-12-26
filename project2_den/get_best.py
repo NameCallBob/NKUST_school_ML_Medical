@@ -19,7 +19,7 @@ def hyperparameter_optimization(
     param_space: Callable[[optuna.Trial], Dict[str, Any]],
     X_train: Any,
     y_train: Any,
-    classification_type: str = "binary",
+    classification_type: str = "multiclass",
     scoring: str = "recall",
     cv: int = 5,
     n_trials: int = 100,
@@ -48,7 +48,7 @@ def hyperparameter_optimization(
 
         scores = []
         for fold, (train_idx, test_idx) in enumerate(cv_strategy.split(X_train, y_train)):
-            
+
             X_train_fold = X_train.iloc[train_idx]
             X_test_fold = X_train.iloc[test_idx]
             y_train_fold = y_train.iloc[train_idx]
@@ -139,22 +139,25 @@ def xgboost_param_space(trial):
 # 測試功能
 from prepare import Prepare
 
-X_train, X_test, y_train, y_test = Prepare().getTrainingData(binary_classification=True,target_class=1 ,test_size=0.2)
+X_train, X_test, y_train, y_test = Prepare().\
+    getTrainingData(binary_classification=True,
+                    target_class=1,
+                    test_size=0.2)
 
-# RandomForestClassifier 測試
-best_rf_model, best_rf_params = hyperparameter_optimization(
-    model_fn=rf_model_fn,
-    param_space=rf_param_space,
-    X_train=X_train,
-    y_train=y_train,
-    classification_type="binary",
-    scoring="recall",
-    cv=5,
-    n_trials=10,
-    n_jobs=-1
-)
-print("最佳參數（RF）：", best_rf_params)
-print("測試集準確率（RF）：", best_rf_model.score(X_test, y_test))
+# # RandomForestClassifier 測試
+# best_rf_model, best_rf_params = hyperparameter_optimization(
+#     model_fn=rf_model_fn,
+#     param_space=rf_param_space,
+#     X_train=X_train,
+#     y_train=y_train,
+#     classification_type="binary",
+#     scoring="f1",
+#     cv=5,
+#     n_trials=10,
+#     n_jobs=-1
+# )
+# print("最佳參數（RF）：", best_rf_params)
+# print("測試集準確率（RF）：", best_rf_model.score(X_test, y_test))
 
 # AdaBoostClassifier 測試
 best_adaboost_model, best_adaboost_params = hyperparameter_optimization(
@@ -162,10 +165,10 @@ best_adaboost_model, best_adaboost_params = hyperparameter_optimization(
     param_space=adaboost_param_space,
     X_train=X_train,
     y_train=y_train,
-    classification_type="binary",
-    scoring="recall",
+    classification_type="multiclass",
+    scoring="f1",
     cv=5,
-    n_trials=10,
+    n_trials=100,
     n_jobs=-1
 )
 print("最佳參數（AdaBoost）：", best_adaboost_params)
@@ -177,10 +180,10 @@ best_xgboost_model, best_xgboost_params = hyperparameter_optimization(
     param_space=xgboost_param_space,
     X_train=X_train,
     y_train=y_train,
-    classification_type="binary",
-    scoring="recall",
+    classification_type="multiclass",
+    scoring="f1",
     cv=5,
-    n_trials=10,
+    n_trials=100,
     n_jobs=-1
 )
 print("最佳參數（XGBoost）：", best_xgboost_params)

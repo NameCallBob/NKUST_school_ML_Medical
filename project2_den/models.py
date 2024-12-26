@@ -36,15 +36,19 @@ class Models:
     def train_xgboost(self, X_train, y_train, save_model=True):
         classification_type = self._detect_classification_type(y_train)
 
-        # 設置目標參數
-        best_xgb = {
-            "objective": "binary:logistic" if classification_type == "binary" else "multi:softmax",
-            "num_class": len(np.unique(y_train)) if classification_type == "multiclass" else None,
-            "learning_rate": 0.1,
-            "n_estimators": 100,
-            "max_depth": 6,
-            "random_state": 42,
-        }
+        best_xgb = {'n_estimators': 957,\
+                    'max_depth': 33,\
+                    'learning_rate': 0.03995070033806279,\
+                    'colsample_bytree': 0.7673016513030932,\
+                    'subsample': 0.9158939353013769,\
+                    'gamma': 2.245009613843046,\
+                    'reg_alpha': 7.971891752929898,\
+                    'reg_lambda': 6.603447890913207,
+                    "objective": "binary:logistic" if classification_type == "binary" else "multi:softmax",
+                    "num_class": len(np.unique(y_train)) if classification_type == "multiclass" else None,
+                    "random_state": 42,
+                    }
+
         xgb = XGBClassifier(**best_xgb)
         xgb.fit(X_train, y_train)
         self.models["XGBoost"] = xgb
@@ -53,10 +57,10 @@ class Models:
 
     def train_adaboost(self, X_train, y_train, save_model=True):
         classification_type = self._detect_classification_type(y_train)
-
+        best_ada = {'n_estimators': 735, 'learning_rate': 0.9756155617924089}
         # 設置模型
         ada = AdaBoostClassifier(
-            n_estimators=50,
+            **best_ada,
             random_state=42
         )
         ada.fit(X_train, y_train)

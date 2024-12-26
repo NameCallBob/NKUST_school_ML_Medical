@@ -80,7 +80,7 @@ class Data:
 
             # 在樞紐分析後重新添加 sick_type
             pivot = pivot.reset_index()
-            pivot['sick_type'] = name
+            pivot['sick_type'] = all_data_name.index(name)
 
             for biomarker in biomarker_filter:
                 if biomarker in pivot.columns:
@@ -167,7 +167,7 @@ class Data:
                                     new_row.update(row.to_dict())
                                     for labresuval_key in ['labresuval']:
                                         if pd.isna(new_row.get(labresuval_key, np.nan)):
-                                            new_row[labresuval_key] = 0  # 添加默認值
+                                            new_row[labresuval_key] = 0
                                     filled_rows.append(pd.Series(new_row))
                         else:
                             prev_rows = group[group['datetime'] == row['datetime']].to_dict('records')

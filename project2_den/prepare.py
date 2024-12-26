@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from imblearn.over_sampling import SMOTE
-
+import numpy as np
 class Prepare:
 
     def __init__(self):
@@ -22,19 +22,21 @@ class Prepare:
 
         # 合併所有 DataFrame，根據 idcode 和 opdno 進行依值合併（直接堆疊）
         merged_data = pd.concat(data_arrays, ignore_index=True)
-        
+        merged_data = merged_data.replace(0.0,np.nan) #不填值使用
+        merged_data = merged_data.dropna(axis=0)
+
         # 選取特徵與目標
         feature = ['ALT/GPT', 'CRP',
-                    'Hematocrit', 
+                    'Hematocrit',
                    'Platelets', 'WBC']
-        
+
         target = ['sick_type']
 
         # 驗證特徵與目標是否存在於合併後的資料中
         for col in feature + target:
             if col not in merged_data.columns:
                 raise ValueError(f"合併後的資料缺少必要欄位: {col}")
-        
+
         X = merged_data[feature].copy()
         y = merged_data[target].copy()
 
@@ -43,6 +45,7 @@ class Prepare:
 
         # 確保目標欄位為整數
         y = y.astype(int)
+        y = y - 1
 
         # 檢查並轉換 object 欄位
         for col in X.columns:
@@ -53,12 +56,10 @@ class Prepare:
                 except Exception as e:
                     raise ValueError(f"欄位 '{col}' 轉換失敗，錯誤訊息: {e}")
 
-        # 填補缺失值
-        X.fillna(X.mean(), inplace=True)
 
-        # 標準化特徵
-        scaler = StandardScaler()
-        X = pd.DataFrame(scaler.fit_transform(X), columns=feature)
+        # # 標準化特徵
+        # scaler = StandardScaler()
+        # X = pd.DataFrame(scaler.fit_transform(X), columns=feature)
 
         # 處理二元分類問題
         if binary_classification and target_class is not None:
@@ -74,6 +75,7 @@ class Prepare:
         from collections import Counter
 
         # 在 SMOTE 前檢查類別數量
+
         if len(Counter(y_train)) > 1:  # 確保有多於一個類別
             smote = SMOTE(random_state=42)
             X_train, y_train = smote.fit_resample(X_train, y_train)
@@ -91,7 +93,7 @@ class Prepare:
             print(f"{col}: 類型 {X[col].dtype}, 前 5 筆值 {X[col].head().values}")
         print("\n目標變數資料類型與前 5 筆數據:")
         print(f"{y.columns[0]}: 類型 {y.dtypes[0]}, 前 5 筆值 {y.head().values}")
-    
+
     def feature_importance_snap(self):
         """
         找尋最佳參數
@@ -123,7 +125,7 @@ class Prepare:
         import xgboost as xgb
 
         X_train, X_test, y_train, y_test = self.getTrainingData(
-            test_size=0.2,binary_classification=True,target_class=1
+            test_size=0.2,binary_classification=False,target_class=1
         )
 
         # 訓練 XGBoost 模型
@@ -139,5 +141,5 @@ class Prepare:
 if __name__ == "__main__":
     ob = Prepare()
     # ob.getTrainingData()
-    # ob.feature_importance()
-    ob.feature_importance_snap()
+    ob.feature_importance()
+    # ob.feature_importance_snap()
