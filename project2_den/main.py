@@ -15,6 +15,10 @@ if __name__ == "__main__":
     """
 
     # 準備數據
+    # X_train, X_test, y_train, y_test = Prepare().getTrainingData(
+    #     binary_classification=False, target_class=0, test_size=0.2
+    # )
+
     X_train, X_test, y_train, y_test = Prepare().getTrainingData(
         binary_classification=False, target_class=0, test_size=0.2
     )
@@ -27,7 +31,9 @@ if __name__ == "__main__":
     models_to_train = {
         "RandomForest": model_handler.train_rf,
         "XGBoost": model_handler.train_xgboost,
-        "AdaBoost": model_handler.train_adaboost,
+        # "AdaBoost": model_handler.train_adaboost,
+        "CatBoost":model_handler.train_catboost,
+        "LightGBM":model_handler.train_lightgbm
     }
 
     # 清單確診和交叉驗證結果

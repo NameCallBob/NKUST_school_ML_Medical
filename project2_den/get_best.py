@@ -188,3 +188,76 @@ best_xgboost_model, best_xgboost_params = hyperparameter_optimization(
 )
 print("最佳參數（XGBoost）：", best_xgboost_params)
 print("測試集準確率（XGBoost）：", best_xgboost_model.score(X_test, y_test))
+
+from lightgbm import LGBMClassifier
+from catboost import CatBoostClassifier
+
+# CatBoostClassifier
+def catboost_model_fn(params):
+    return CatBoostClassifier(**params, random_state=42, verbose=0)
+
+def catboost_param_space(trial):
+    return {
+        "iterations": trial.suggest_int("iterations", 100, 1000),
+        "depth": trial.suggest_int("depth", 4, 12),
+        "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.3, log=True),
+        "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1, 10),
+        "border_count": trial.suggest_int("border_count", 32, 255),
+        "bootstrap_type": trial.suggest_categorical("bootstrap_type", ["Bayesian", "Bernoulli", "MVS"]),
+        "class_weights": trial.suggest_categorical("class_weights", [None, "Balanced"]),
+    }
+
+# LightGBMClassifier
+def lightgbm_model_fn(params):
+    return LGBMClassifier(**params, random_state=42)
+
+def lightgbm_param_space(trial):
+    return {
+        "n_estimators": trial.suggest_int("n_estimators", 50, 1000),
+        "num_leaves": trial.suggest_int("num_leaves", 31, 256),
+        "max_depth": trial.suggest_int("max_depth", -1, 50),
+        "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.3, log=True),
+        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.3, 1.0),
+        "subsample": trial.suggest_float("subsample", 0.3, 1.0),
+        "reg_alpha": trial.suggest_float("reg_alpha", 0, 10),
+        "reg_lambda": trial.suggest_float("reg_lambda", 0, 10),
+        "class_weight": trial.suggest_categorical("class_weight", [None, "balanced"]),
+    }
+
+# 測試功能
+from prepare import Prepare
+
+X_train, X_test, y_train, y_test = Prepare().\
+    getTrainingData(binary_classification=True,
+                    target_class=1,
+                    test_size=0.2)
+
+# CatBoostClassifier 測試
+best_catboost_model, best_catboost_params = hyperparameter_optimization(
+    model_fn=catboost_model_fn,
+    param_space=catboost_param_space,
+    X_train=X_train,
+    y_train=y_train,
+    classification_type="multiclass",
+    scoring="f1",
+    cv=5,
+    n_trials=100,
+    n_jobs=-1
+)
+print("最佳參數（CatBoost）：", best_catboost_params)
+print("測試集準確率（CatBoost）：", best_catboost_model.score(X_test, y_test))
+
+# LightGBMClassifier 測試
+best_lightgbm_model, best_lightgbm_params = hyperparameter_optimization(
+    model_fn=lightgbm_model_fn,
+    param_space=lightgbm_param_space,
+    X_train=X_train,
+    y_train=y_train,
+    classification_type="multiclass",
+    scoring="f1",
+    cv=5,
+    n_trials=100,
+    n_jobs=-1
+)
+print("最佳參數（LightGBM）：", best_lightgbm_params)
+print("測試集準確率（LightGBM）：", best_lightgbm_model.score(X_test, y_test))
