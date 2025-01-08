@@ -220,32 +220,17 @@ class Data:
         """
         導入已處理好的資料，並將含分號的欄位展開，同時將除 idcode, opdno, ipdat 之外的欄位都轉成 float。
         """
-        data_den = pd.read_csv("./data/result_tmp/den_data_expanded.csv")
-        data_flu = pd.read_csv("./data/result_tmp/flu_data_expanded.csv")
-        data_sep = pd.read_csv("./data/result_tmp/sep_data_expanded.csv")
-        data_gen0 = pd.read_csv("./data/result_tmp/gen_data_0_expanded.csv")
-        data_gen1 = pd.read_csv("./data/result_tmp/gen_data_1_expanded.csv")
+        
+        data_den = pd.read_csv("./data/result/den_data.csv")
+        data_flu = pd.read_csv("./data/result/flu_data.csv")
+        data_sep = pd.read_csv("./data/result/sep_data.csv")
+        data_gen0 = pd.read_csv("./data/result/gen_data_0.csv")
+        data_gen1 = pd.read_csv("./data/result/gen_data_1.csv")
 
         # 集合所有資料為一個 list
         all_data = [data_den, data_flu, data_sep, data_gen0, data_gen1]
 
-        # 對每個 DataFrame 做展開 + 型別轉換
-        expanded_data_list = []
-
-        for i in range(len(all_data)):
-            df = all_data[i]
-            # 1) 先展開含分號的欄位
-            expanded_df = self.expand_semicolon_rows(df,i)
-
-            # 2) 將除 idcode, opdno, ipdat 外的欄位全部轉為 float
-            keep_cols = ["idcode", "opdno", "ipdat"]
-            for col in expanded_df.columns:
-                if col not in keep_cols:
-                    expanded_df[col] = pd.to_numeric(expanded_df[col], errors="coerce")
-
-            expanded_data_list.append(expanded_df)
-
-        return expanded_data_list
+        return all_data
 
     def __missing_value_report(self, dataframe, name):
         """
@@ -366,10 +351,13 @@ class Data:
             pivot_table.to_csv(output_file, index=False)
             print(f"結果已保存: {output_file}")
 
-    def expand_semicolon_rows(self, df: pd.DataFrame, sick_type) -> pd.DataFrame:
+    def __expand_semicolon_rows(self, df: pd.DataFrame, sick_type) -> pd.DataFrame:
         """
         將 df 中每一列如遇到分號 ';'，展開成多列。
         若某欄位不含分號(或分割後長度較少)，則以最後一個值補齊。
+
+        註：適用於第二次處理的資料，因測量多次會用分號隔開
+        檔案後為_expanded
         """
         import pandas as pd
 

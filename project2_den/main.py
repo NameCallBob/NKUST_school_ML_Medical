@@ -3,6 +3,7 @@ if __name__ == "__main__":
     from prepare import Prepare
     from evaluate import Evaluate
     import pandas as pd
+    import os
 
     SAVE_MODEL = False
 
@@ -16,11 +17,13 @@ if __name__ == "__main__":
 
     # 準備數據
     # X_train, X_test, y_train, y_test = Prepare().getTrainingData(
-    #     binary_classification=False, target_class=0, test_size=0.2
+    #     binary_classification=False, target_class=0, test_size=0.2,
+    #     No_train_label=[1,4]
     # )
 
-    X_train, X_test, y_train, y_test = Prepare().getTrainingData(
-        binary_classification=False, target_class=0, test_size=0.2
+    X_train, X_test, y_train, y_test = Prepare().getTrainingDataWithFeatureEngineering(
+        binary_classification=False, target_class=0, test_size=0.2,
+        No_train_label=[4]
     )
 
     # 初始化模型和評估器
@@ -32,12 +35,16 @@ if __name__ == "__main__":
         "RandomForest": model_handler.train_rf,
         "XGBoost": model_handler.train_xgboost,
         # "AdaBoost": model_handler.train_adaboost,
-        "CatBoost":model_handler.train_catboost,
-        "LightGBM":model_handler.train_lightgbm
+        "CatBoost": model_handler.train_catboost,
+        "LightGBM": model_handler.train_lightgbm
     }
 
     # 清單確診和交叉驗證結果
     combined_results = []
+
+    # 結果輸出目錄
+    output_dir = "./result"
+    os.makedirs(output_dir, exist_ok=True)
 
     for model_name, train_func in models_to_train.items():
         print(f"\n--- 正在訓練 {model_name} 模型 ---")
@@ -48,7 +55,7 @@ if __name__ == "__main__":
 
         # 評估模型
         print(f"\n正在評估 {model_name} 模型...")
-        model_metrics = evaluator.model(model_name, model, X_train , y_train, X_test, y_test)
+        model_metrics = evaluator.model(model_name, model, X_train, y_train, X_test, y_test)
 
         # 評估交叉驗證
         cross_val_metrics = evaluator.cross_val(model, X_test, y_test, n_split=5)
@@ -83,6 +90,12 @@ if __name__ == "__main__":
         combined_results.append(result_data)
 
         # 自動導出結果
-        output_file = f"./result/{model_name.lower()}_evaluation.xlsx"
-        pd.DataFrame([result_data]).to_excel(output_file, index=False)
+        output_file = os.path.join(output_dir, f"{model_name.lower()}_evaluation.csv")
+        pd.DataFrame([result_data]).to_csv(output_file, index=False)
         print(f"{model_name} 模型結果已導出至 {output_file}")
+
+    # 整合所有模型的結果並輸出為 Excel
+    combined_df = pd.DataFrame(combined_results)
+    excel_output_file = os.path.join(output_dir, "all_models_evaluation.xlsx")
+    combined_df.to_excel(excel_output_file, index=False)
+    print(f"所有模型的結果已整合並導出至 {excel_output_file}")

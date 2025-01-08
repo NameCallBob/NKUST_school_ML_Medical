@@ -2,8 +2,9 @@ from data import Data
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from imblearn.over_sampling import SMOTE
+from imblearn.combine import SMOTETomek
 import numpy as np
+import lightgbm as lgb
 
 
 class Prepare:
@@ -11,7 +12,12 @@ class Prepare:
     def __init__(self):
         self.ob = Data()
 
-    def getTrainingData(self, test_size=0.2, binary_classification=False, target_class=None):
+    def getTrainingData(self,
+                        test_size=0.2,
+                        binary_classification=False,
+                        target_class=None,
+                        No_train_label = []
+                        ):
         """
         導入測試資料並進行處理，最後返回訓練及測試資料
         """
@@ -25,9 +31,16 @@ class Prepare:
         # 合併所有 DataFrame，根據 idcode 和 opdno 進行依值合併（直接堆疊）
         merged_data = pd.concat(data_arrays, ignore_index=True)
 
-        feature = ['Hematocrit', 'Platelets', 'WBC']
+        feature = [
+            'ALT/GPT','AST/GOT','CRP',
+            'Creatinine','Hematocrit',
+            'Lymphocyte','Platelets',
+            'Segment','WBC'
+        ]
 
         target = ['sick_type']
+
+
 
         # 驗證特徵與目標是否存在於合併後的資料中
         for col in feature + target:
@@ -37,6 +50,9 @@ class Prepare:
         merged_data = merged_data.replace(0.0, np.nan)  # 不填值使用
         merged_data = merged_data.dropna(axis=0)
 
+        if len(No_train_label) != 0 :
+            merged_data = merged_data[~merged_data['sick_type'].isin(No_train_label)]
+
         X = merged_data[feature].copy()
         y = merged_data[target].copy()
 
@@ -45,7 +61,7 @@ class Prepare:
 
         # 確保目標欄位為整數
         y = y.astype(int)
-
+        
         # 檢查並轉換 object 欄位
         for col in X.columns:
             if X[col].dtype == 'object':
@@ -90,9 +106,8 @@ class Prepare:
             # tl = TomekLinks()
             # X_train_balanced, y_train_balanced = tl.fit_resample(X_train, y_train)
 
-            from imblearn.combine import SMOTEENN
             # 使用 SMOTEENN 混合重採樣
-            smote_enn = SMOTEENN(random_state=42)
+            smote_enn = SMOTETomek(random_state=42)
             X_train_balanced, y_train_balanced = smote_enn.fit_resample(
                 X_train, y_train)
             print("重採樣後 y_train_balanced 類別分佈:", Counter(y_train_balanced))
@@ -100,67 +115,47 @@ class Prepare:
         print("訓練資料預處理完畢")
         return X_train_balanced, X_test , y_train_balanced, y_test
 
-    def getTrainingDataWithFeatureEngineering(self, test_size=0.2, binary_classification=False, target_class=None):
+    def getTrainingDataWithFeatureEngineering(self, test_size=0.2, binary_classification=False, target_class=None , No_train_label=[]):
         X_train, X_test, y_train, y_test = self.getTrainingData(
-            test_size=test_size, binary_classification=binary_classification, target_class=target_class
+            test_size=test_size,
+            binary_classification=binary_classification,
+            target_class=target_class,
+            No_train_label = No_train_label
         )
-
-        # # 處理缺失值
-        # X_train = self.handle_missing_values(X_train)
-        # X_test = self.handle_missing_values(X_test)
-        # print(
-        #     f"After missing values: X_train.shape={X_train.shape}, y_train.shape={y_train.shape}")
-        # print(
-        #     f"After missing values: X_test.shape={X_test.shape}, y_test.shape={y_test.shape}")
-
         # 創造新特徵
         X_train = self.create_new_features(X_train)
         X_test = self.create_new_features(X_test)
-        print(
-            f"After creating new features: X_train.shape={X_train.shape}, y_train.shape={y_train.shape}")
-        print(
-            f"After creating new features: X_test.shape={X_test.shape}, y_test.shape={y_test.shape}")
+        model = lgb.LGBMClassifier(
+            objective='multiclass' if len(set(y_train)) > 2 else 'binary',
+            num_class=len(set(y_train)) if len(set(y_train)) > 2 else None,
+            max_depth=10,              # 增加樹的深度
+                num_leaves=50,             # 增加葉子數量
+                min_child_samples=10,      # 降低每個葉節點的最小樣本數
+                min_split_gain=0.01,       # 設置最小分裂增益
+                learning_rate=0.05,        # 降低學習率
+                max_bin=255,               # 減少分箱數
+                feature_fraction=0.8,      # 每次迭代隨機選擇 80% 的特徵
+                random_state=42
+        )
+        model.fit(X_train, y_train)
 
-        # 創造多項式特徵
-        X_train = self.polynomial_features(X_train)
-        X_test = self.polynomial_features(X_test)
-        print(
-            f"After polynomial features: X_train.shape={X_train.shape}, y_train.shape={y_train.shape}")
-        print(
-            f"After polynomial features: X_test.shape={X_test.shape}, y_test.shape={y_test.shape}")
+        feature_importance = pd.DataFrame({
+            "Feature": X_train.columns,
+            "Importance": model.feature_importances_,
+        }).sort_values(by="Importance", ascending=False)
 
-        # 處理異常值，同時更新 y_train 和 y_test
-        # X_train, y_train = self.handle_outliers(X_train, y_train)
-        # X_test, y_test = self.handle_outliers(X_test, y_test)
-        # print(f"After handling outliers: X_train.shape={X_train.shape}, y_train.shape={y_train.shape}")
-        # print(f"After handling outliers: X_test.shape={X_test.shape}, y_test.shape={y_test.shape}")
+        top_features = feature_importance.head(5)['Feature'].tolist()
+        print(f"選擇的前五個重要特徵: {top_features}")
 
-        # 標準化特徵
+        X_train = X_train[top_features]
+        X_test = X_test[top_features]
+
         scaler = StandardScaler()
-        X_train = pd.DataFrame(scaler.fit_transform(
-            X_train), columns=X_train.columns, index=X_train.index)
-        X_test = pd.DataFrame(scaler.transform(
-            X_test), columns=X_test.columns, index=X_test.index)
-        print(
-            f"After scaling: X_train.shape={X_train.shape}, y_train.shape={y_train.shape}")
-        print(
-            f"After scaling: X_test.shape={X_test.shape}, y_test.shape={y_test.shape}")
-
-        # 特徵選擇
-        X_train, X_test = self.feature_selection(X_train, y_train, X_test, num_features=10)
-        print(f"After feature selection: X_train.shape={X_train.shape}, y_train.shape={y_train.shape}")
-        print(f"After feature selection: X_test.shape={X_test.shape}, y_test.shape={y_test.shape}")
-
-        # 確保 X_train 和 y_train 及 X_test 和 y_test 的行數一致
-        assert X_train.shape[0] == y_train.shape[0], "X_train 和 y_train 的行數不一致"
-        assert X_test.shape[0] == y_test.shape[0], "X_test 和 y_test 的行數不一致"
-
-        # 檢查特徵名稱唯一性
-        assert X_train.columns.is_unique, "X_train 的特徵名稱不唯一"
-        assert X_test.columns.is_unique, "X_test 的特徵名稱不唯一"
+        X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=top_features, index=X_train.index)
+        X_test = pd.DataFrame(scaler.transform(X_test), columns=top_features, index=X_test.index)
 
         return X_train, X_test, y_train, y_test
-    # 檢查特徵與目標資料的類型和部分值
+
 
     def __check_dataframe_columns(self, X, y):
         print("特徵欄位資料類型與前 5 筆數據:")
@@ -219,8 +214,9 @@ class Prepare:
         import shap
         # print("目前為停用的狀態，發現他找了一天都沒有找到")
         # 分割資料
-        X_train, X_test, y_train, y_test = self.getTrainingData(
-            test_size=0.2, binary_classification=True, target_class=1
+        X_train, X_test, y_train, y_test = self.getTrainingDataWithFeatureEngineering(
+            test_size=0.2, binary_classification=False, target_class=0,
+            No_train_label=[1,4]
         )
 
         # 訓練模型
@@ -245,7 +241,8 @@ class Prepare:
 
         # 獲取訓練數據
         X_train, X_test, y_train, y_test = self.getTrainingDataWithFeatureEngineering(
-            test_size=0.2, binary_classification=False, target_class=0
+            test_size=0.2, binary_classification=False, target_class=0,
+            No_train_label=[1,4]
         )
         print("y_train classes and counts:",
               np.unique(y_train, return_counts=True))
@@ -277,13 +274,11 @@ class Prepare:
         plt.gca().invert_yaxis()
         plt.show()
 
-    def handle_missing_values(self, X):
-        from sklearn.impute import SimpleImputer
-        imputer = SimpleImputer(strategy='median')
-        X = pd.DataFrame(imputer.fit_transform(X), columns=X.columns)
-        return X
+        top_features = feature_importance.head(5)['Feature'].tolist()
 
-    def handle_outliers(self, X, y):
+        return top_features
+
+    def __handle_outliers(self, X, y):
         from scipy import stats
         z_scores = np.abs(stats.zscore(X))
         threshold = 3
@@ -293,17 +288,20 @@ class Prepare:
         return X_clean, y_clean
 
     def create_new_features(self, X):
-        X['Platelets_WBC_Ratio'] = X['Platelets'] / (X['WBC'] + 1e-5)
-        X['Hematocrit_WBC_Ratio'] = X['Hematocrit'] / (X['WBC'] + 1e-5)
-        X['Hematocrit_Platelets_Product'] = X['Hematocrit'] * X['Platelets']
+        eps = 1e-5
 
-        X['WBC_log'] = np.log1p(X['WBC'])
+        # Creating medically validated features
+        X['alt_ast_ratio'] = X['ALT/GPT'] / (X['AST/GOT'] + 1e-6)  # 新增特徵
+        X['Segment_WBC_Ratio'] = X['Segment'] / (X['WBC'] + eps)
+        X['Lymphocyte_WBC_Ratio'] = X['Lymphocyte'] / (X['WBC'] + eps)
 
+        # Replace problematic characters in column names
         X.columns = [col.replace('/', '_') for col in X.columns]
 
         return X
 
-    def polynomial_features(self, X):
+
+    def __polynomial_features(self, X):
         from sklearn.preprocessing import PolynomialFeatures
         poly = PolynomialFeatures(
             degree=2, interaction_only=True, include_bias=False)
@@ -334,7 +332,7 @@ class Prepare:
         model.fit(X_train, y_train)
 
         selector = SelectFromModel(
-            model, max_features=num_features, prefit=True)
+            model, prefit=True)
         X_train_selected = selector.transform(X_train)
         X_test_selected = selector.transform(X_test)
 
