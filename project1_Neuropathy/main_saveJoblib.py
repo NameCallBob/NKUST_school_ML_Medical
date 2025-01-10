@@ -1,7 +1,7 @@
 if __name__ == "__main__":
     from models import Models
     from prepare import prepare
-    from evaluate import Evaluate
+    from eval2 import Evaluate
     import pandas as pd
     for i in range(1,3):
         for j in ['tor','ele']:
@@ -34,20 +34,14 @@ if __name__ == "__main__":
             # 匯總結果
             test_data = {
                 model_name: {
-                    "Test Accuracy": metrics["Accuracy"],
-                    "Test Precision": metrics["Precision"],
-                    "Test Recall": metrics["Recall"],
-                    "Test F1 Score": metrics["F1 Score"],
-                    "Test AUC": metrics["AUC"],
-                    "Train Accuracy": metrics_train["Accuracy"],
-                    "Train Precision": metrics_train["Precision"],
-                    "Train Recall": metrics_train["Recall"],
-                    "Train F1 Score": metrics_train["F1 Score"],
-                    "Train AUC": metrics_train["AUC"],
+                    "Accuracy": metrics["Accuracy"],
+                    "Precision": metrics["Precision"],
+                    "Recall": metrics["Recall"],
+                    "F1 Score": metrics["F1 Score"],
+                    "AUC": metrics["AUC"],
                 }
                 for model_name, result in models_results.items()
                 for metrics in [result["Test Metrics"]]
-                for metrics_train in [result["Train Metrics"]]
             }
 
             cross_val_data = {

@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     X_train, X_test, y_train, y_test = Prepare().getTrainingDataWithFeatureEngineering(
         binary_classification=False, target_class=0, test_size=0.2,
-        No_train_label=[4]
+        No_train_label=[3,4]
     )
 
     # 初始化模型和評估器
