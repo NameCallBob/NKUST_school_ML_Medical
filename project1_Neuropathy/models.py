@@ -19,7 +19,7 @@ class Models:
         rf.fit(X_train, y_train)
         self.models["RandomForest"] = rf
         if save_model:
-            joblib.dump(rf, f'./result/model/RF_{model_name}.joblib')
+            joblib.dump(rf, f'./project1_Neuropathy/result/model/RF_{model_name}.joblib')
 
     def train_xgboost(self, X_train, y_train,save_model=True, data_type="ele",model_name=None):
         if data_type == "ele":
@@ -33,7 +33,7 @@ class Models:
         xgb.fit(X_train, y_train)
         self.models["XGBoost"] = xgb
         if save_model:
-            joblib.dump(xgb, f'./result/model/XGB_{model_name}.joblib')
+            joblib.dump(xgb, f'./project1_Neuropathy/result/model/XGB_{model_name}.joblib')
 
     def train_adaboost(self, X_train, y_train,save_model=True,data_type="ele",model_name=None):
         if data_type == "tor":
@@ -45,7 +45,7 @@ class Models:
         self.models["AdaBoost"] = ada
 
         if save_model:
-            joblib.dump(ada, f'./result/model/ADA_{model_name}.joblib')
+            joblib.dump(ada, f'./project1_Neuropathy/result/model/ADA_{model_name}.joblib')
 
     def get_models(self):
         return self.models

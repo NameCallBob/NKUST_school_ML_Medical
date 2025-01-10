@@ -1,7 +1,7 @@
 if __name__ == "__main__":
     from models import Models
     from prepare import prepare
-    from evaluate import Evaluate
+    from eval2 import Evaluate
     import pandas as pd
     for i in range(1,3):
         for j in ['tor','ele']:
@@ -26,7 +26,7 @@ if __name__ == "__main__":
             cross_val_results = {}
             for model_name, model in model_handler.get_models().items():
                 print(f"評估 {model_name} 模型...")
-                models_results[model_name] = evaluator.model(model_name, model, X_test, y_test,i,j)
+                models_results[model_name] = evaluator.model(model_name, model, X_train, y_train, X_test, y_test, i,j)
                 cross_val_results[model_name] = evaluator.cross_val(model, X_train, y_train, n_split=10)
             # 繪製合併 ROC 曲線
             evaluator.plot_combined_roc(models_results,i,j)
@@ -40,7 +40,8 @@ if __name__ == "__main__":
                     "F1 Score": metrics["F1 Score"],
                     "AUC": metrics["AUC"],
                 }
-                for model_name, metrics in models_results.items()
+                for model_name, result in models_results.items()
+                for metrics in [result["Test Metrics"]]
             }
 
             cross_val_data = {
@@ -57,6 +58,6 @@ if __name__ == "__main__":
             combined_df = pd.concat([test_df, cross_val_df], axis=1)
 
             # 導出結果到 Excel
-            output_file = f"./result/model_evaluation_{j}_summary_{i}.xlsx"
+            output_file = f"./project1_Neuropathy/result/model_evaluation_{j}_summary_{i}.xlsx"
             combined_df.to_excel(output_file)
             print(f"評估結果已導出至 {output_file}")
